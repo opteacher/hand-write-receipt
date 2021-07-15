@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div>
+    <div v-if="!hideMoveCtrl">
       <a-button type="primary" icon="arrow-up" class="ctl-top-btn" @click="onCtrlBtnClicked('up')"/>
       <br/>
       <a-button-group>
@@ -14,6 +14,7 @@
     <br/>
     <a-button-group>
       <a-button type="primary" icon="zoom-in" @click="onCtrlBtnClicked('zoomIn')"/>
+      <a-button type="primary" @click="onCtrlBtnClicked('zoomReset')">{{zoomPerc}}%</a-button>
       <a-button type="primary" icon="zoom-out" @click="onCtrlBtnClicked('zoomOut')"/>
     </a-button-group>
   </div>
@@ -22,6 +23,11 @@
 <script>
 export default {
   props: {
+    'zoomPerc': Number,
+    'hideMoveCtrl': {
+      type: Boolean,
+      default: false
+    },
     'onCtrlBtnClicked': Function
   }
 }

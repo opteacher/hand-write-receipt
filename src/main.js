@@ -7,7 +7,6 @@ import 'ant-design-vue/dist/antd.css'
 import './commons/styles.css'
 
 Vue.config.productionTip = false
-
 Vue.use(Antd)
 
 new Vue({

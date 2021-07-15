@@ -1,82 +1,111 @@
 <template>
   <div class="h-100">
-    <div v-if="!uploadTemp.imgURL" class="center-container">
-      <a-upload
-        name="file"
-        :showUploadList="false"
-        :action="[
-          bkHost,
-          '/hand-write-receipt',
-          '/api/v1/template/file/upload'
-        ].join('')"
-        @change="onSelImgChanged"
-      >
-        <a-button type="primary" @click="uploadTemp.loading = true">
-          <a-icon type="upload"/> 上传模板图片
-        </a-button>
-      </a-upload>
+    <div v-if="!tempInfo.imgURL">
+      <div class="center-container temp-list">
+        <a-list class="w-100" bordered item-layout="horizontal" :data-source="templates">
+          <a-list-item slot="renderItem" slot-scope="temp">
+            <div class="lg-sg-r-container " style="width: 60vw">
+              <a class="long-single-row" @click="onTempClicked(temp)">{{temp.name}}</a>
+            </div>
+            <a-button type="danger" slot="actions" icon="close" @click="onDelTempClicked(temp._id)"/>
+          </a-list-item>
+        </a-list>
+      </div>
+      <div class="fix-bottom">
+        <a-upload
+          name="file"
+          :showUploadList="false"
+          :action="[
+            bkHost,
+            '/hand-write-receipt',
+            '/api/v1/template/file/upload'
+          ].join('')"
+          @change="onSelImgChanged"
+        >
+          <a-button type="primary">
+            <a-icon type="upload"/> 上传模板图片
+          </a-button>
+        </a-upload>
+      </div>
     </div>
     <div v-else class="h-100">
-      <div style="position: fixed; left: 0; right: 0; top: 0; bottom: 80px; overflow-y: scroll">
-        <div :style="`position: relative; top: ${edtImg.top}px; left: ${edtImg.left}px`">
-          <img id="tempImage" :src="uploadTemp.imgURL" :style="`width: ${edtImg.width}%; height: auto`"/>
-          <tags-canvas ref="tagsCanvas" :width="edtImg.cvsWid" :height="edtImg.cvsHgt" :mode="edtImg.mode"
-            :onSelRectCreated="mode => {edtImg.mode = mode || ''}"
-          />
-        </div>
-        <div style="position: fixed; right: 0; bottom: 80px; padding: 1vh 1vw">
-          <ctrl-panel :onCtrlBtnClicked="onCtrlBtnClicked"/>
-        </div>
-      </div>
-      <div style="position: fixed; left: 0; right: 0; bottom: 0; padding: 1vh 1vw">
+      <a-page-header
+        style="border: 1px solid rgb(235, 237, 240); padding: 1vh 2vw"
+        :sub-title="tempInfo.name || '新建模板'"
+        @back="resetTempInfo"
+      />
+      <img-with-cvs :top="53" :bottom="80"
+        :tempInfo="tempInfo" :mode="mode"
+        :onSelRectCreated="(selMode) => {mode = selMode}"
+      />
+      <div class="fix-bottom">
         <div class="mb-5 d-flex justify-content-around">
           <a-button class="w-100 mr-1"
-            :type="edtImg.mode === 'edit' ? 'danger' : 'default'"
-            :disabled="edtImg.mode === 'store'"
-            @click="edtImg.mode = edtImg.mode !== 'edit' ? 'edit' : ''"
+            :type="mode === 'edit' ? 'danger' : 'default'"
+            :disabled="mode === 'store'"
+            @click="mode = mode !== 'edit' ? 'edit' : 'view'"
           >标记需编辑区域</a-button>
           <a-button class="w-100"
-            :type="edtImg.mode === 'store' ? 'primary' : 'default'"
-            :disabled="edtImg.mode === 'edit'"
-            @click="edtImg.mode = edtImg.mode !== 'store' ? 'store' : ''"
+            :type="mode === 'store' ? 'primary' : 'default'"
+            :disabled="mode === 'edit'"
+            @click="mode = mode !== 'store' ? 'store' : 'view'"
           >标记回执区域</a-button>
         </div>
-        <a-button type="primary" block>提交</a-button>
+        <a-button type="primary" block @click="onTmpSbtClicked">提交</a-button>
+        <a-modal
+          title="配置模板信息"
+          :visible="configDlg.visible"
+          :confirm-loading="configDlg.confirming"
+          @ok="onTempSubmit"
+          @cancel="configDlg.visible = false"
+        >
+          <a-input-search placeholder="输入模板名" v-model="tempInfo.name">
+            <a-button slot="enterButton" @click.native="onUseImgNameClicked">使用图片名</a-button>
+          </a-input-search>
+        </a-modal>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import ctrlPanel from '../components/ctrlPanel'
-import tagsCanvas from '../components/tagsCanvas'
+import imgWithCvs from '../components/imgWithCvs'
 import utils from '../commons/utils'
-import $ from 'jquery'
+import axios from 'axios'
+import URL from 'url'
+import path from 'path'
 export default {
   components: {
-    'ctrl-panel': ctrlPanel,
-    'tags-canvas': tagsCanvas
+    'img-with-cvs': imgWithCvs
   },
   data () {
     return {
       bkHost: process.env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:4000',
-      uploadTemp: {
+      mode: 'view',
+      tempInfo: {
+        _id: '',
         imgURL: '',
-        loading: false
+        editRects: [],
+        storeRect: {
+          width: 1, height: 1
+        }
       },
-      edtImg: {
-        mode: '',
-        top: 0,
-        left: 0,
-        mvSpd: 10,
-        width: 100,
-        cvsWid: 0,
-        cvsHgt: 0,
-        sclSpd: 5
-      },
+      templates: [],
+      configDlg: {
+        visible: false,
+        confirming: false,
+      }
     }
   },
+  created () {
+    this.resetTempInfo()
+    this.refreshTemplates()
+  },
   methods: {
+    async refreshTemplates () {
+      const url = this.bkHost + '/hand-write-receipt/mdl/v1/templates'
+      this.templates = await utils.reqBack(this, axios.get(url)) || []
+    },
     async onSelImgChanged (e) {
       if (e.file.response) {
         const resp = e.file.response
@@ -86,53 +115,77 @@ export default {
             content: resp.error,
           })
         } else {
-          this.uploadTemp.imgURL = resp.result
-          await this.updCanvasWH()
+          this.tempInfo.imgURL = resp.result
         }
       }
-      this.uploadTemp.loading = false
     },
-    async onCtrlBtnClicked (dir) {
-      switch (dir) {
-        case 'up':
-          this.edtImg.top -= this.edtImg.mvSpd
-          break
-        case 'down':
-          this.edtImg.top += this.edtImg.mvSpd
-          break
-        case 'left':
-          this.edtImg.left += this.edtImg.mvSpd
-          break
-        case 'right':
-          this.edtImg.left -= this.edtImg.mvSpd
-          break
-        case 'zoomIn':
-          this.edtImg.width += this.edtImg.sclSpd
-          this.edtImg.mvSpd += 2
-          await this.updCanvasWH()
-          break
-        case 'zoomOut':
-          this.edtImg.width -= this.edtImg.sclSpd
-          this.edtImg.mvSpd -= 2
-          await this.updCanvasWH()
-          this.$refs['tagsCanvas'].resetCvsWH()
-          break
-        case 'reset':
-          this.edtImg.top = 0
-          this.edtImg.left = 0
-          this.edtImg.width = 100
-          await this.updCanvasWH()
-          this.$refs['tagsCanvas'].resetCvsWH()
+    onTmpSbtClicked () {
+      if (!this.tempInfo._id) {
+        this.configDlg.visible = true
+      } else {
+        this.onTempSubmit()
       }
     },
-    async updCanvasWH () {
-      await utils.until(() => {
-        const tmpImgHgt = $('#tempImage').height()
-        return tmpImgHgt > 0 && tmpImgHgt !== this.edtImg.cvsHgt
+    async onTempSubmit () {
+      this.configDlg.confirming = true
+      let url = this.bkHost + '/hand-write-receipt/mdl/v1/template'
+      url += this.tempInfo._id ? `/${this.tempInfo._id}` : ''
+      const method = this.tempInfo._id ? 'put' : 'post'
+      delete this.tempInfo._id
+      const result = await utils.reqBack(this, axios[method](url, this.tempInfo))
+      const newTemp = result[0]
+      console.log(newTemp)
+      this.configDlg.confirming = false
+      this.configDlg.visible = false
+      this.$message.success(this.tempInfo._id ? '模板保存成功！' : '模板创建成功', 2, () => {
+        this.resetTempInfo()
+        this.refreshTemplates()
       })
-      this.edtImg.cvsWid = $('#tempImage').width()
-      this.edtImg.cvsHgt = $('#tempImage').height()
+    },
+    onUseImgNameClicked () {
+      const url = URL.parse(this.tempInfo.imgURL)
+      this.tempInfo.name = path.basename(url.pathname)
+    },
+    onTempClicked (temp) {
+      this.tempInfo = temp
+    },
+    onDelTempClicked (tmpId) {
+      const self = this
+      this.$confirm({
+        title: '警告?',
+        content: '确定删除该模板？',
+        async onOk() {
+          await axios.delete(`${self.bkHost}/hand-write-receipt/mdl/v1/template/${tmpId}`)
+          return self.refreshTemplates()
+        },
+      })
+    },
+    resetTempInfo () {
+      this.tempInfo = {
+        _id: '',
+        name: '',
+        imgURL: '',
+        editRects: [],
+        storeRect: {
+          width: 1, height: 1
+        }
+      }
     }
   }
 }
 </script>
+
+<style>
+.ant-page-header-back {
+  margin-top: 3px !important;
+}
+
+.temp-list {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 47px;
+  padding: 1vh 1vw;
+  overflow-y: scroll;
+}
+</style>

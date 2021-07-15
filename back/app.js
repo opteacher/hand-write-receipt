@@ -15,8 +15,6 @@ const app = new Koa()
 
 // 跨域配置
 app.use(cors())
-// 路径解析
-app.use(bodyparser())
 // 上传配置
 app.use(koaBody({
   multipart: true,
@@ -24,6 +22,8 @@ app.use(koaBody({
     maxFileSize: 200*1024*1024    // 设置上传文件大小最大限制，默认2M
   }
 }))
+// 路径解析
+app.use(bodyparser())
 // json解析
 app.use(json())
 // 日志输出

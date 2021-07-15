@@ -28,5 +28,23 @@ module.exports = {
       obj = obj[key]
     }
     return obj
+  },
+  async reqBack (self, promise) {
+    const hide = self.$message.loading('加载中……')
+    const resp = await promise
+    hide()
+    if (!resp.data) {
+      this.$message.error('返回体没有data字段！')
+      return Promise.reject()
+    }
+    if (!resp.data.data) {
+      this.$message.error(JSON.stringify(resp.data))
+      return Promise.reject()
+    }
+    return Promise.resolve(resp.data.data)
+  },
+  clrMap: {
+    edit: '#ff4d4f',
+    store: '#1890ff'
   }
 }
