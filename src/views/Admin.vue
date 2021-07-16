@@ -138,14 +138,13 @@ export default {
       url += this.tempInfo._id ? `/${this.tempInfo._id}` : ''
       const method = this.tempInfo._id ? 'put' : 'post'
       delete this.tempInfo._id
-      const result = await utils.reqBack(this, axios[method](url, Object.assign(this.tempInfo, {
+      await utils.reqBack(this, axios[method](url, Object.assign(this.tempInfo, {
         editRects: this.tempInfo.editRects.map(rect => ({
           left: rect.left, top: rect.top,
           width: rect.width, height: rect.height,
           desc: rect.desc, data: rect.data
         }))
       })))
-      const newTemp = result[0]
       this.configDlg.confirming = false
       this.configDlg.visible = false
       this.resetTempInfo()
