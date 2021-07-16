@@ -5,12 +5,16 @@
       <canvas id="tagsCanvas" :width="cvsInfo.width" :height="cvsInfo.height">
         你的浏览器不支持canvas，请升级浏览器
       </canvas>
-      <a-modal
-        title="手写文字" centered
-        :visible="hdWrteDlg.visible"
-        @ok="onHdWtFinish"
-        @cancel="hdWrteDlg.visible = false"
-      >
+      <a-modal title="手写文字" centered :visible="hdWrteDlg.visible" @cancel="hdWrteDlg.visible = false">
+        <template slot="footer">
+          <div style="text-align: center">
+            <canvas id="hdWtVwCvs" :width="hdWtCvs.width" height="32" style="background-color: #cccccc"/>
+          </div>
+          <div class="mt-5">
+            <a-button type="primary" @click="onHdWtFinish">完成</a-button>
+            <a-button type="primary" @click="onHdWtNext" ghost>下一个</a-button>
+          </div>
+        </template>
         <canvas id="hdWtCanvas"
           :width="hdWtCvs.width" :height="hdWtCvs.height"
           style="background-color: #cccccc"
@@ -107,7 +111,11 @@ export default {
         height: 0,
         writing: false,
         strokes: [],
-        lastStk: []
+        lastStk: [],
+        words: [],
+        writeBoard: null,
+        viewBoard: null,
+        vwContext: null
       }
     }
   },
@@ -238,7 +246,9 @@ export default {
         this.hdWrteDlg.visible = true
         this.operRect = rect
         document.body.style.cursor = 'default'
-        this.initHdWtCvs()
+        if (!this.hdWtCvs.viewBoard || !this.hdWtCvs.writeBoard) {
+          this.initHdWtCvs()
+        }
       } else if (rect.btnClose.down) {
         if (rect.mode === 'edit') {
           for (let i = 0; i < this.tempInfo.editRects.length; ++i) {
@@ -334,14 +344,18 @@ export default {
         const height = rect.height * this.cvsInfo.height
 
         const context = this.cvsInfo.context
-        context.fillStyle = utils.clrMap[mode]
-        if (!rect.rect.down) {
-          context.fillStyle += '55'
-        }
         rect.rect.l = left
         rect.rect.t = top
         rect.rect.r = left + width
         rect.rect.b = top + height
+        if (!this.mode && rect.data.length) {
+          this.drawHdWtWds(context, rect.data, height, height, left, top)
+          return
+        }
+        context.fillStyle = utils.clrMap[mode]
+        if (!rect.rect.down) {
+          context.fillStyle += '55'
+        }
         context.fillRect(left, top, width, height)
         if (rect.desc) {
           const fontSz = Math.min(width / rect.desc.length, height)
@@ -585,6 +599,7 @@ export default {
       }, rctBtn())
       if (rect.mode === 'edit') {
         rect.btnDesc = rctBtn()
+        rect.data = []
       }
       return rect
     },
@@ -594,6 +609,15 @@ export default {
       this.hdWtCvs.height = this.hdWtCvs.width
       this.hdWtCvs.canvas = document.getElementById('hdWtCanvas')
       this.hdWtCvs.context = this.hdWtCvs.canvas.getContext('2d')
+      this.hdWtCvs.writeBoard = this.hdWtCvs.context.getImageData(
+        0, 0, this.hdWtCvs.width, this.hdWtCvs.height
+      )
+      const hdWtVwCvs = document.getElementById('hdWtVwCvs')
+      this.hdWtCvs.vwContext = hdWtVwCvs.getContext('2d')
+      this.hdWtCvs.viewBoard = this.hdWtCvs.vwContext.getImageData(
+        0, 0, this.hdWtCvs.width, 32
+      )
+      this.refreshHdWtBoard()
 
       const self = this
       this.hdWtCvs.canvas.addEventListener('touchstart', function (e) {
@@ -638,9 +662,57 @@ export default {
       }
     },
     onHdWtFinish () {
-      console.log(this.hdWtCvs.strokes)
-      console.log(this.operRect.rect)
+      this.hdWtCvs.strokes = []
+      this.hdWtCvs.lastStk = []
+      this.operRect.data = this.hdWtCvs.words
+      this.hdWtCvs.words = []
       this.operRect = null
+      this.hdWrteDlg.visible = false
+      this.refreshScreen()
+    },
+    onHdWtNext () {
+      this.hdWtCvs.words.push(this.hdWtCvs.strokes)
+      this.hdWtCvs.strokes = []
+      this.hdWtCvs.lastStk = []
+      this.normLastWord()
+      this.refreshHdWtBoard()
+    },
+    normLastWord () {
+      const rcpWid = 1 / this.hdWtCvs.width
+      const rcpHgt = 1 / this.hdWtCvs.height
+      const lastIdx = this.hdWtCvs.words.length - 1
+      for (let j = 0; j < this.hdWtCvs.words[lastIdx].length; ++j) {
+        for (let t = 0; t < this.hdWtCvs.words[lastIdx][j].length; ++t) {
+          const point = this.hdWtCvs.words[lastIdx][j][t]
+          this.hdWtCvs.words[lastIdx][j][t].x = point.x * rcpWid
+          this.hdWtCvs.words[lastIdx][j][t].y = point.y * rcpHgt
+        }
+      }
+    },
+    refreshHdWtBoard () {
+      if (!this.hdWtCvs.vwContext) {
+        return
+      }
+      this.hdWtCvs.context.putImageData(
+        this.hdWtCvs.writeBoard, 0, 0
+      )
+      const context = this.hdWtCvs.vwContext
+      context.putImageData(this.hdWtCvs.viewBoard, 0, 0)
+      context.beginPath()
+      this.drawHdWtWds(context, this.hdWtCvs.words, 32, 32)
+    },
+    drawHdWtWds (context, hdWtWds, bdWid, bdHgt, bdLft = 0, bdTop = 0) {
+      for (let i = 0; i < hdWtWds.length; ++i) {
+        for (const strokes of hdWtWds[i]) {
+          for (let t = 0; t < strokes.length; ++t) {
+            const point = strokes[t]
+            const x = bdLft + (point.x + i) * bdWid
+            const y = bdTop + point.y * bdHgt
+            context[t === 0 ? 'moveTo' : 'lineTo'](x, y)
+          }
+        }
+        context.stroke()
+      }
     }
   }
 }
