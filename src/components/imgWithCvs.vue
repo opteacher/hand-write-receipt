@@ -352,11 +352,7 @@ export default {
           this.drawHdWtWds(context, rect.data, height, height, left, top)
           return
         }
-        // context.fillStyle = utils.clrMap[mode]
-        // if (!rect.rect.down) {
-        //   context.fillStyle += '55'
-        // }
-        context.fillStyle = 'rgba(255, 77, 79, .3)'
+        context.fillStyle = `rgba(255, 77, 79, ${!rect.rect.down ? '.3' : '1'})`
         context.fillRect(left, top, width, height)
         if (rect.desc) {
           const fontSz = Math.min(width / rect.desc.length, height)
