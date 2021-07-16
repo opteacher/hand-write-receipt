@@ -356,7 +356,7 @@ export default {
         // if (!rect.rect.down) {
         //   context.fillStyle += '55'
         // }
-        context.fillStyle = 'rgba(255, 77, 79, 100)'
+        context.fillStyle = 'rgba(255, 77, 79, .3)'
         context.fillRect(left, top, width, height)
         if (rect.desc) {
           const fontSz = Math.min(width / rect.desc.length, height)
