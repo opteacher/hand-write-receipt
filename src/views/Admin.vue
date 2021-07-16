@@ -33,7 +33,13 @@
         style="border: 1px solid rgb(235, 237, 240); padding: 1vh 2vw"
         :sub-title="tempInfo.name || '新建模板'"
         @back="resetTempInfo"
-      />
+      >
+        <template v-if="tempInfo._id" slot="extra">
+          <a-button type="primary" @click="$router.push(`/hand-write-receipt/home?t=${tempInfo._id}`)">
+            实际页面
+          </a-button>
+        </template>
+      </a-page-header>
       <img-with-cvs :top="53" :bottom="80"
         :tempInfo="tempInfo" :mode="mode"
         :onSelRectCreated="(selMode) => {mode = selMode}"
