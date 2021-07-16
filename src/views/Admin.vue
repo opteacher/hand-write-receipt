@@ -146,11 +146,10 @@ export default {
         }))
       })))
       const newTemp = result[0]
-      console.log(newTemp)
       this.configDlg.confirming = false
       this.configDlg.visible = false
+      this.resetTempInfo()
       this.$message.success(this.tempInfo._id ? '模板保存成功！' : '模板创建成功', 2, () => {
-        this.resetTempInfo()
         this.refreshTemplates()
       })
     },
