@@ -140,67 +140,73 @@ export default {
     this.addHistory()
     this.refreshScreen()
     
-    this.cvsInfo.canvas.onmousedown = function (e) {
-      e.preventDefault()
-      self.mousedown = self.wdsToCvs(e.clientX, e.clientY)
-      for (const editRect of self.tempInfo.editRects) {
-        self.mosDownInRect(editRect)
-      }
-      self.mosDownInRect(self.tempInfo.storeRect)
-      if (self.mode === 'edit' || self.mode === 'store') {
-        self.dragging = true
-      }
-      self.refreshScreen()
-    }
-    this.cvsInfo.canvas.onmousemove = function (e) {
-      e.preventDefault()
-      const mosPos = self.wdsToCvs(e.clientX, e.clientY)
-      if (self.dragging) {
-        self.clrLastHis()
-        self.updSelRect(mosPos)
-      }
-      for (const editRect of self.tempInfo.editRects) {
-        self.mosMoveInRect(editRect, mosPos)
-      }
-      self.mosMoveInRect(self.tempInfo.storeRect, mosPos)
-    }
-    this.cvsInfo.canvas.onmouseup = function (e) {
-      e.preventDefault()
-      for (const editRect of self.tempInfo.editRects) {
-        self.mosUpInRect(editRect)
-      }
-      self.mosUpInRect(self.tempInfo.storeRect)
-      if (self.dragging) {
-        self.dragging = false
-        const bdRect = self.buildRect(
-          self.mousedown, self.wdsToCvs(e.clientX, e.clientY)
-        )
-        let rect = null
-        if (self.mode === 'edit') {
-          if (self.operRect) {
-            rect = self.operRect
-          } else {
-            rect = self.resetRect({}, 'edit')
-            self.tempInfo.editRects.push(rect)
-          }
-        } else {
-          rect = self.tempInfo.storeRect
-        }
-        rect.left = bdRect.left
-        rect.top = bdRect.top
-        rect.width = bdRect.width
-        rect.height = bdRect.height
-        if (self.onSelRectCreated) {
-          self.onSelRectCreated('view')
-        }
-      }
-      self.refreshScreen()
-    }
+    this.cvsInfo.canvas.onmousedown = this.onMouseDown
+    this.cvsInfo.canvas.onmousemove = this.onMouseMove
+    this.cvsInfo.canvas.onmouseup = this.onMouseUp
+    this.cvsInfo.canvas.addEventListener('touchstart', this.onMouseDown, false)
+    this.cvsInfo.canvas.addEventListener('touchmove', this.onMouseMove, false)
+    this.cvsInfo.canvas.addEventListener('touchend', this.onMouseUp, false)
   },
   updated () {
     this.refreshScreen()
   },
   methods: {
+    onMouseDown (e) {
+      e.preventDefault()
+      this.mousedown = this.wdsToCvs(e.clientX, e.clientY)
+      for (const editRect of this.tempInfo.editRects) {
+        this.mosDownInRect(editRect)
+      }
+      this.mosDownInRect(this.tempInfo.storeRect)
+      if (this.mode === 'edit' || this.mode === 'store') {
+        this.dragging = true
+      }
+      this.refreshScreen()
+    },
+    onMouseMove (e) {
+      e.preventDefault()
+      const mosPos = this.wdsToCvs(e.clientX, e.clientY)
+      if (this.dragging) {
+        this.clrLastHis()
+        this.updSelRect(mosPos)
+      }
+      for (const editRect of this.tempInfo.editRects) {
+        this.mosMoveInRect(editRect, mosPos)
+      }
+      this.mosMoveInRect(this.tempInfo.storeRect, mosPos)
+    },
+    onMouseUp (e) {
+      e.preventDefault()
+      for (const editRect of this.tempInfo.editRects) {
+        this.mosUpInRect(editRect)
+      }
+      this.mosUpInRect(this.tempInfo.storeRect)
+      if (this.dragging) {
+        this.dragging = false
+        const bdRect = this.buildRect(
+          this.mousedown, this.wdsToCvs(e.clientX, e.clientY)
+        )
+        let rect = null
+        if (this.mode === 'edit') {
+          if (this.operRect) {
+            rect = this.operRect
+          } else {
+            rect = this.resetRect({}, 'edit')
+            this.tempInfo.editRects.push(rect)
+          }
+        } else {
+          rect = this.tempInfo.storeRect
+        }
+        rect.left = bdRect.left
+        rect.top = bdRect.top
+        rect.width = bdRect.width
+        rect.height = bdRect.height
+        if (this.onSelRectCreated) {
+          this.onSelRectCreated('view')
+        }
+      }
+      this.refreshScreen()
+    },
     mosDownInRect (rect) {
       if (!this.mode && rect.rect.in) {
         rect.rect.down = true
@@ -640,40 +646,42 @@ export default {
       )
       this.refreshHdWtBoard()
 
-      const self = this
-      this.hdWtCvs.canvas.addEventListener('touchstart', function (e) {
-        e.preventDefault()
-        self.hdWtCvs.writing = true
-      }, false)
-      this.hdWtCvs.canvas.addEventListener('touchmove', function (e) {
-        e.preventDefault()
-        if (!self.hdWtCvs.writing || !self.hdWtCvs.context) {
-          return
-        }
-        const mosPos = self.pnlToCvs(
-          e.touches[0].clientX,
-          e.touches[0].clientY
-        )
-        const context = self.hdWtCvs.context
-        if (self.hdWtCvs.lastStk.length) {
-          const lstPos = self.hdWtCvs.lastStk[
-            self.hdWtCvs.lastStk.length - 1
-          ]
-          context.beginPath()
-          context.moveTo(lstPos.x, lstPos.y)
-          context.lineTo(mosPos.x, mosPos.y)
-          context.stroke()
-        }
-        self.hdWtCvs.lastStk.push(mosPos)
-      }, false)
-      this.hdWtCvs.canvas.addEventListener('touchend', function (e) {
-        e.preventDefault()
-        self.hdWtCvs.writing = false
-        self.hdWtCvs.strokes.push(
-          self.hdWtCvs.lastStk
-        )
-        self.hdWtCvs.lastStk = []
-      }, false)
+      this.hdWtCvs.canvas.addEventListener('touchstart', this.onTouchStart, false)
+      this.hdWtCvs.canvas.addEventListener('touchmove', this.onTouchMove, false)
+      this.hdWtCvs.canvas.addEventListener('touchend', this.onTouchEnd, false)
+    },
+    onTouchStart (e) {
+      e.preventDefault()
+      this.hdWtCvs.writing = true
+    },
+    onTouchMove (e) {
+      e.preventDefault()
+      if (!this.hdWtCvs.writing || !this.hdWtCvs.context) {
+        return
+      }
+      const mosPos = this.pnlToCvs(
+        e.touches[0].clientX,
+        e.touches[0].clientY
+      )
+      const context = this.hdWtCvs.context
+      if (this.hdWtCvs.lastStk.length) {
+        const lstPos = this.hdWtCvs.lastStk[
+          this.hdWtCvs.lastStk.length - 1
+        ]
+        context.beginPath()
+        context.moveTo(lstPos.x, lstPos.y)
+        context.lineTo(mosPos.x, mosPos.y)
+        context.stroke()
+      }
+      this.hdWtCvs.lastStk.push(mosPos)
+    },
+    onTouchEnd (e) {
+      e.preventDefault()
+      this.hdWtCvs.writing = false
+      this.hdWtCvs.strokes.push(
+        this.hdWtCvs.lastStk
+      )
+      this.hdWtCvs.lastStk = []
     },
     pnlToCvs (x, y) {
       const bbox = this.hdWtCvs.canvas.getBoundingClientRect()
