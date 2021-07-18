@@ -16,7 +16,7 @@
           name="file"
           :showUploadList="false"
           :action="[
-            bkHost,
+            utils.bkHost,
             '/hand-write-receipt',
             '/api/v1/template/file/upload'
           ].join('')"
@@ -35,9 +35,9 @@
         @back="resetTempInfo"
       >
         <template v-if="tempInfo._id" slot="extra">
-          <a-button type="primary" @click="$router.push(`/hand-write-receipt/home?t=${tempInfo._id}`)">
-            实际页面
-          </a-button>
+          <a-button type="primary" icon="eye"
+            @click="$router.push(`/hand-write-receipt/home?t=${tempInfo._id}`)"
+          />
         </template>
       </a-page-header>
       <img-with-cvs :top="53" :bottom="80"
@@ -86,7 +86,6 @@ export default {
   },
   data () {
     return {
-      bkHost: process.env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:4000',
       mode: 'view',
       tempInfo: {
         _id: '',
@@ -100,7 +99,8 @@ export default {
       configDlg: {
         visible: false,
         confirming: false,
-      }
+      },
+      utils
     }
   },
   created () {
@@ -109,8 +109,9 @@ export default {
   },
   methods: {
     async refreshTemplates () {
-      const url = this.bkHost + '/hand-write-receipt/mdl/v1/templates'
-      this.templates = await utils.reqBack(this, axios.get(url)) || []
+      this.templates = await utils.reqBack(this,
+        '/hand-write-receipt/mdl/v1/templates', 'get'
+      ) || []
     },
     async onSelImgChanged (e) {
       if (e.file.response) {
@@ -134,17 +135,17 @@ export default {
     },
     async onTempSubmit () {
       this.configDlg.confirming = true
-      let url = this.bkHost + '/hand-write-receipt/mdl/v1/template'
-      url += this.tempInfo._id ? `/${this.tempInfo._id}` : ''
+      let path = '/hand-write-receipt/mdl/v1/template'
+      path += this.tempInfo._id ? `/${this.tempInfo._id}` : ''
       const method = this.tempInfo._id ? 'put' : 'post'
       delete this.tempInfo._id
-      await utils.reqBack(this, axios[method](url, Object.assign(this.tempInfo, {
+      await utils.reqBack(this, path, method, Object.assign(this.tempInfo, {
         editRects: this.tempInfo.editRects.map(rect => ({
           left: rect.left, top: rect.top,
           width: rect.width, height: rect.height,
-          desc: rect.desc, data: rect.data
+          desc: rect.desc
         }))
-      })))
+      }))
       this.configDlg.confirming = false
       this.configDlg.visible = false
       this.resetTempInfo()
@@ -197,5 +198,19 @@ export default {
   bottom: 47px;
   padding: 1vh 1vw;
   overflow-y: scroll;
+}
+
+.ant-page-header-heading-sub-title {
+  width: 60vw;
+  word-break: keep-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ant-page-header-heading-extra {
+  width: auto !important;
+  padding-top: 0 !important;
+  float: right !important;
 }
 </style>

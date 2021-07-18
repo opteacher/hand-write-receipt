@@ -1,4 +1,5 @@
 const $ = require('jquery')
+const axios = require('axios')
 
 module.exports = {
   async waitFor (select, cdFun = null, lpLimit = 500) {
@@ -29,22 +30,25 @@ module.exports = {
     }
     return obj
   },
-  async reqBack (self, promise) {
+  bkHost: process.env.NODE_ENV === 'production' ? '' : 'http://127.0.0.1:4000',
+  async reqBack (self, path, method, params = {}) {
     const hide = self.$message.loading('加载中……')
-    const resp = await promise
+    const resp = await axios[method](this.bkHost + path, params)
     hide()
     if (!resp.data) {
-      this.$message.error('返回体没有data字段！')
+      self.$message.error('返回体没有data字段！')
       return Promise.reject()
     }
-    if (!resp.data.data) {
-      this.$message.error(JSON.stringify(resp.data))
+    if (!resp.data.data && !resp.data.result) {
+      self.$message.error(JSON.stringify(resp.data))
       return Promise.reject()
     }
-    return Promise.resolve(resp.data.data)
+    return Promise.resolve(resp.data.data || resp.data.result)
   },
   clrMap: {
     edit: '#ff4d4f',
-    store: '#1890ff'
+    store: '#1890ff',
+    editRGB: '255, 77, 79',
+    storeRGB: '24, 144, 255'
   }
 }

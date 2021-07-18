@@ -1,6 +1,5 @@
 const path = require('path')
 const Koa = require('koa')
-const bodyparser = require('koa-bodyparser')
 const koaBody = require('koa-body')
 const json = require('koa-json')
 const logger = require('koa-logger')
@@ -20,10 +19,12 @@ app.use(koaBody({
   multipart: true,
   formidable: {
     maxFileSize: 200*1024*1024    // 设置上传文件大小最大限制，默认2M
+  },
+  jsonLimit: '100mb',
+  onError: function (err, ctx) {
+    ctx.throw(`Error happened! ${err}`)
   }
 }))
-// 路径解析
-app.use(bodyparser())
 // json解析
 app.use(json())
 // 日志输出

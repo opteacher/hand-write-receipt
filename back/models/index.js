@@ -12,7 +12,8 @@ const db = require(`../databases/${cfg.type}`)
 
 // @steps{1}:引进所有模型
 const exp = {
-  'Template': require('./template')
+  'Template': require('./template'),
+  'Receipt': require('./receipt')
 }
 
 // @step{}:同步数据库

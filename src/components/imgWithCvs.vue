@@ -1,32 +1,31 @@
 <template>
   <div class="fix-scroll" :style="`top: ${top}px; bottom: ${bottom}px`">
-    <div :style="`position: relative; top: ${cvsInfo.imgTop}px; left: ${cvsInfo.imgLft}px`">
-      <img id="tempImage" :src="tempInfo.imgURL" :style="`width: ${cvsInfo.imgWid}%; height: auto`"/>
-      <canvas id="tagsCanvas" :width="cvsInfo.width" :height="cvsInfo.height">
+    <canvas id="tagsCanvas" :width="cvsInfo.width" :height="cvsInfo.height"
+      :style="`left: ${cvsInfo.left}px; top: ${cvsInfo.top}px`"
+    >
+      你的浏览器不支持canvas，请升级浏览器
+    </canvas>
+    <a-modal title="手写文字" centered :visible="hdWrteDlg.visible" @cancel="hdWrteDlg.visible = false">
+      <template slot="footer">
+        <div style="text-align: center">
+          <canvas id="hdWtVwCvs" :width="hdWtCvs.width" height="32" style="background-color: #cccccc"/>
+        </div>
+        <div class="mt-5">
+          <a-button type="primary" @click="onHdWtFinish">完成</a-button>
+          <a-button type="primary" @click="onHdWtNext" ghost>下一个</a-button>
+        </div>
+      </template>
+      <canvas id="hdWtCanvas"
+        :width="hdWtCvs.width" :height="hdWtCvs.height"
+        style="background-color: #cccccc"
+      >
         你的浏览器不支持canvas，请升级浏览器
       </canvas>
-      <a-modal title="手写文字" centered :visible="hdWrteDlg.visible" @cancel="hdWrteDlg.visible = false">
-        <template slot="footer">
-          <div style="text-align: center">
-            <canvas id="hdWtVwCvs" :width="hdWtCvs.width" height="32" style="background-color: #cccccc"/>
-          </div>
-          <div class="mt-5">
-            <a-button type="primary" @click="onHdWtFinish">完成</a-button>
-            <a-button type="primary" @click="onHdWtNext" ghost>下一个</a-button>
-          </div>
-        </template>
-        <canvas id="hdWtCanvas"
-          :width="hdWtCvs.width" :height="hdWtCvs.height"
-          style="background-color: #cccccc"
-        >
-          你的浏览器不支持canvas，请升级浏览器
-        </canvas>
-      </a-modal>
-    </div>
+    </a-modal>
     <div :style="`position: fixed; right: 0; bottom: ${bottom}px; padding: 1vh 1vw`">
       <ctrl-panel
         :onCtrlBtnClicked="onCtrlBtnClicked"
-        :zoomPerc="cvsInfo.imgWid"
+        :zoomPerc="cvsInfo.zoom"
         :hideMoveCtrl="mode === ''"
       />
     </div>
@@ -79,10 +78,11 @@ export default {
   data () {
     return {
       cvsInfo: {
-        imgLft: 0,
-        imgTop: 0,
-        mvSpd: 10,
-        imgWid: 100,
+        image: null,
+        left: 0,
+        top: 0,
+        move: 10,
+        zoom: 100,
         width: 0,
         height: 0,
         canvas: null,
@@ -125,13 +125,21 @@ export default {
     for (let i = 0; i < this.tempInfo.editRects.length; ++i) {
       this.resetRect(this.tempInfo.editRects[i], 'edit')
     }
-    await this.updCanvasWH()
     this.cvsInfo.canvas = document.getElementById('tagsCanvas')
     this.cvsInfo.context = this.cvsInfo.canvas.getContext('2d')
+    this.cvsInfo.image = new Image()
+    this.cvsInfo.image.src = this.tempInfo.imgURL
+    this.cvsInfo.image.setAttribute('crossOrigin', '')
+    const self = this
+    await new Promise(resolve => {
+      this.cvsInfo.image.onload = function () {
+        self.updCanvasWH()
+        resolve()
+      }
+    })
     this.addHistory()
     this.refreshScreen()
     
-    const self = this
     this.cvsInfo.canvas.onmousedown = function (e) {
       e.preventDefault()
       self.mousedown = self.wdsToCvs(e.clientX, e.clientY)
@@ -188,6 +196,9 @@ export default {
       }
       self.refreshScreen()
     }
+  },
+  updated () {
+    this.refreshScreen()
   },
   methods: {
     mosDownInRect (rect) {
@@ -324,8 +335,12 @@ export default {
         return
       }
       this.clrScreen()
-      this.cvsInfo.context.save()
-      this.cvsInfo.context.beginPath()
+      const context = this.cvsInfo.context
+      context.drawImage(this.cvsInfo.image,
+        0, 0, this.cvsInfo.width, this.cvsInfo.height
+      )
+      context.save()
+      context.beginPath()
       if (this.tempInfo.storeRect.width !== 1
       && this.tempInfo.storeRect.height !== 1) {
         this.drawSelRect(this.tempInfo.storeRect, 'store')
@@ -333,7 +348,7 @@ export default {
       for (const editRect of this.tempInfo.editRects) {
         this.drawSelRect(editRect, 'edit')
       }
-      this.cvsInfo.context.restore()
+      context.restore()
       this.addHistory()
     },
     drawSelRect (rect, mode) {
@@ -352,7 +367,7 @@ export default {
           this.drawHdWtWds(context, rect.data, height, height, left, top)
           return
         }
-        context.fillStyle = `rgba(255, 77, 79, ${!rect.rect.down ? '.3' : '1'})`
+        context.fillStyle = `rgba(${utils.clrMap[`${mode}RGB`]}, ${!rect.rect.down ? '.3' : '1'})`
         context.fillRect(left, top, width, height)
         if (rect.desc) {
           const fontSz = Math.min(width / rect.desc.length, height)
@@ -485,44 +500,52 @@ export default {
       rect.btnResizes[rszKey].b = cy + 5
       this.cvsInfo.context.fillRect(cx - 5, cy - 5, 10, 10)
     },
-    async onCtrlBtnClicked (dir) {
+    onCtrlBtnClicked (dir) {
       switch (dir) {
       case 'up':
-        this.cvsInfo.imgTop += this.cvsInfo.mvSpd
+        this.cvsInfo.top += this.cvsInfo.move
         break
       case 'down':
-        this.cvsInfo.imgTop -= this.cvsInfo.mvSpd
+        this.cvsInfo.top -= this.cvsInfo.move
         break
       case 'left':
-        this.cvsInfo.imgLft += this.cvsInfo.mvSpd
+        this.cvsInfo.left += this.cvsInfo.move
         break
       case 'right':
-        this.cvsInfo.imgLft -= this.cvsInfo.mvSpd
+        this.cvsInfo.left -= this.cvsInfo.move
         break
       case 'zoomIn':
-        this.cvsInfo.imgWid += 5
-        this.cvsInfo.mvSpd += 2
-        await this.updCanvasWH()
+        this.cvsInfo.zoom += 5
+        this.cvsInfo.move += 2
+        this.updCanvasWH()
         this.refreshScreen()
         break
       case 'zoomOut':
-        this.cvsInfo.imgWid -= 5
-        this.cvsInfo.mvSpd += 2
-        await this.updCanvasWH()
+        this.cvsInfo.zoom -= 5
+        this.cvsInfo.move += 2
+        this.updCanvasWH()
+        this.refreshScreen()
+        break
+      case 'reset':
+        this.cvsInfo.top = 0
+        this.cvsInfo.left = 0
+        this.cvsInfo.zoom = 100
+        this.cvsInfo.move = 10
+        this.updCanvasWH()
         this.refreshScreen()
         break
       case 'zoomReset':
-        this.cvsInfo.imgWid = 100
-        this.cvsInfo.mvSpd = 10
-        await this.updCanvasWH()
+        this.cvsInfo.zoom = 100
+        this.cvsInfo.move = 10
+        this.updCanvasWH()
         this.refreshScreen()
         break
       }
     },
-    async updCanvasWH () {
-      const $tmpImg = await utils.waitFor('#tempImage', $img => $img.height())
-      this.cvsInfo.width = $tmpImg.width()
-      this.cvsInfo.height = $tmpImg.height()
+    updCanvasWH () {
+      this.cvsInfo.width = document.body.clientWidth * (this.cvsInfo.zoom / 100)
+      this.cvsInfo.height = this.cvsInfo.width /
+        this.cvsInfo.image.width * this.cvsInfo.image.height
       this.cvsInfo.rcpWid = 1 / this.cvsInfo.width
       this.cvsInfo.rcpHgt = 1 / this.cvsInfo.height
     },
@@ -577,8 +600,9 @@ export default {
       rect.mode = mode
       rect.left = force ? 0 : (rect.left || 0)
       rect.top = force ? 0 : (rect.top || 0)
-      rect.width = force ? 0 : (rect.width || 0)
-      rect.height = force ? 0 : (rect.height || 0)
+      const dftWH = mode === 'store' ? 1 : 0
+      rect.width = force ? dftWH : (rect.width || dftWH)
+      rect.height = force ? dftWH : (rect.height || dftWH)
       rect.rect = rctBtn()
       rect.btnResizes = {
         lftTop: rctBtn(),
@@ -710,6 +734,20 @@ export default {
         }
         context.stroke()
       }
+    },
+    cutReceipt (rcptName) {
+      const left = this.tempInfo.storeRect.left * this.cvsInfo.width
+      const top = this.tempInfo.storeRect.top * this.cvsInfo.height
+      const width = this.tempInfo.storeRect.width * this.cvsInfo.width
+      const height = this.tempInfo.storeRect.height * this.cvsInfo.height
+      const rcptData =  this.cvsInfo.context.getImageData(left, top, width, height)
+      const path = '/hand-write-receipt/api/v1/receipt/data/upload'
+      return utils.reqBack(this, path, 'post', {
+        fileName: rcptName,
+        width: rcptData.width,
+        height: rcptData.height,
+        data: rcptData.data
+      })
     }
   }
 }
