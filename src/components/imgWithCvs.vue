@@ -144,7 +144,6 @@ export default {
     this.cvsInfo.canvas.onmousemove = this.onMouseMove
     this.cvsInfo.canvas.onmouseup = this.onMouseUp
     this.cvsInfo.canvas.addEventListener('touchstart', this.onMouseDown, false)
-    this.cvsInfo.canvas.addEventListener('touchmove', this.onMouseMove, false)
     this.cvsInfo.canvas.addEventListener('touchend', this.onMouseUp, false)
   },
   updated () {
@@ -157,7 +156,9 @@ export default {
       for (const editRect of this.tempInfo.editRects) {
         this.mosDownInRect(editRect)
       }
-      this.mosDownInRect(this.tempInfo.storeRect)
+      if (!this.mode) {
+        this.mosDownInRect(this.tempInfo.storeRect)
+      }
       if (this.mode === 'edit' || this.mode === 'store') {
         this.dragging = true
       }
@@ -173,14 +174,18 @@ export default {
       for (const editRect of this.tempInfo.editRects) {
         this.mosMoveInRect(editRect, mosPos)
       }
-      this.mosMoveInRect(this.tempInfo.storeRect, mosPos)
+      if (!this.mode) {
+        this.mosMoveInRect(this.tempInfo.storeRect, mosPos)
+      }
     },
     onMouseUp (e) {
       e.preventDefault()
       for (const editRect of this.tempInfo.editRects) {
         this.mosUpInRect(editRect)
       }
-      this.mosUpInRect(this.tempInfo.storeRect)
+      if (!this.mode) {
+        this.mosUpInRect(this.tempInfo.storeRect)
+      }
       if (this.dragging) {
         this.dragging = false
         const bdRect = this.buildRect(
@@ -208,7 +213,7 @@ export default {
       this.refreshScreen()
     },
     mosDownInRect (rect) {
-      if (!this.mode && rect.rect.in) {
+      if (!this.mode && this.insideBox(rect.rect, this.mousedown)) {
         rect.rect.down = true
       } else if (rect.btnClose.in) {
         rect.btnClose.down = true
