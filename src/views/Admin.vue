@@ -166,7 +166,7 @@ export default {
         title: '警告?',
         content: '确定删除该模板？',
         async onOk() {
-          await axios.delete(`${self.bkHost}/hand-write-receipt/mdl/v1/template/${tmpId}`)
+          await axios.delete(`${utils.bkHost}/hand-write-receipt/mdl/v1/template/${tmpId}`)
           return self.refreshTemplates()
         },
       })

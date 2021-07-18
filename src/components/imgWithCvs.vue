@@ -150,9 +150,18 @@ export default {
     this.refreshScreen()
   },
   methods: {
+    posToCvs (cvs, e) {
+      const x = e.clientX || e.touches[0].clientX
+      const y = e.clientY || e.touches[0].clientY
+      const bbox = cvs.getBoundingClientRect()
+      return {
+        x: x - bbox.left * (cvs.width / bbox.width),
+        y: y - bbox.top * (cvs.height / bbox.height)
+      }
+    },
     onMouseDown (e) {
       e.preventDefault()
-      this.mousedown = this.wdsToCvs(e.clientX, e.clientY)
+      this.mousedown = this.posToCvs(this.cvsInfo.canvas, e)
       for (const editRect of this.tempInfo.editRects) {
         this.mosDownInRect(editRect)
       }
@@ -166,7 +175,7 @@ export default {
     },
     onMouseMove (e) {
       e.preventDefault()
-      const mosPos = this.wdsToCvs(e.clientX, e.clientY)
+      const mosPos = this.posToCvs(this.cvsInfo.canvas, e)
       if (this.dragging) {
         this.clrLastHis()
         this.updSelRect(mosPos)
@@ -189,7 +198,7 @@ export default {
       if (this.dragging) {
         this.dragging = false
         const bdRect = this.buildRect(
-          this.mousedown, this.wdsToCvs(e.clientX, e.clientY)
+          this.mousedown, this.posToCvs(this.cvsInfo.canvas, e)
         )
         let rect = null
         if (this.mode === 'edit') {
@@ -568,13 +577,6 @@ export default {
         height: Math.abs(rbPoi.y - ltPoi.y)  * this.cvsInfo.rcpHgt
       }
     },
-    wdsToCvs (x, y) {
-      const bbox = this.cvsInfo.canvas.getBoundingClientRect()
-      return {
-        x: x - bbox.left * (this.cvsInfo.width / bbox.width),
-        y: y - bbox.top * (this.cvsInfo.height / bbox.height)
-      }
-    },
     insideBox (box, pos) {
       return pos.x >= box.l && pos.x <= box.r
         && pos.y >= box.t && pos.y <= box.b
@@ -664,10 +666,7 @@ export default {
       if (!this.hdWtCvs.writing || !this.hdWtCvs.context) {
         return
       }
-      const mosPos = this.pnlToCvs(
-        e.touches[0].clientX,
-        e.touches[0].clientY
-      )
+      const mosPos = this.posToCvs(this.hdWtCvs.canvas, e)
       const context = this.hdWtCvs.context
       if (this.hdWtCvs.lastStk.length) {
         const lstPos = this.hdWtCvs.lastStk[
@@ -687,13 +686,6 @@ export default {
         this.hdWtCvs.lastStk
       )
       this.hdWtCvs.lastStk = []
-    },
-    pnlToCvs (x, y) {
-      const bbox = this.hdWtCvs.canvas.getBoundingClientRect()
-      return {
-        x: x - bbox.left * (this.hdWtCvs.width / bbox.width),
-        y: y - bbox.top * (this.hdWtCvs.height / bbox.height)
-      }
     },
     onHdWtFinish () {
       this.hdWtCvs.strokes = []
