@@ -144,6 +144,7 @@ export default {
     this.cvsInfo.canvas.onmousemove = this.onMouseMove
     this.cvsInfo.canvas.onmouseup = this.onMouseUp
     this.cvsInfo.canvas.addEventListener('touchstart', this.onMouseDown, false)
+    this.cvsInfo.canvas.addEventListener('touchmove', this.onMouseMove, false)
     this.cvsInfo.canvas.addEventListener('touchend', this.onMouseUp, false)
   },
   updated () {
