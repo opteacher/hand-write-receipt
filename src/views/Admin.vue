@@ -20,11 +20,10 @@
             '/hand-write-receipt',
             '/api/v1/template/file/upload'
           ].join('')"
+          :beforeUpload="onStartUpload"
           @change="onSelImgChanged"
         >
-          <a-button type="primary">
-            <a-icon type="upload"/> 上传模板图片
-          </a-button>
+          <a-button type="primary" :loading="uploading">上传模板图片</a-button>
         </a-upload>
       </div>
     </div>
@@ -87,6 +86,7 @@ export default {
   data () {
     return {
       mode: 'view',
+      uploading: false,
       tempInfo: {
         _id: '',
         imgURL: '',
@@ -114,6 +114,7 @@ export default {
       ) || []
     },
     async onSelImgChanged (e) {
+      this.uploading = false
       if (e.file.response) {
         const resp = e.file.response
         if (resp.error) {
@@ -181,6 +182,10 @@ export default {
           width: 1, height: 1
         }
       }
+    },
+    onStartUpload () {
+      this.uploading = true
+      return Promise.resolve()
     }
   }
 }

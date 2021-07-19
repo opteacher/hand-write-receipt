@@ -5,14 +5,16 @@
     >
       你的浏览器不支持canvas，请升级浏览器
     </canvas>
-    <a-modal title="手写文字" centered :visible="hdWrteDlg.visible" @cancel="hdWrteDlg.visible = false">
+    <a-modal title="手写文字" centered :visible="hdWrteDlg.visible" @cancel="hdWrteDlg.visible = false" :bodyStyle="{
+      'padding-bottom': '10px'
+    }">
       <template slot="footer">
         <div style="text-align: center">
-          <canvas id="hdWtVwCvs" :width="hdWtCvs.width" height="32" style="background-color: #cccccc"/>
+          <canvas id="hdWtVwCvs" :width="hdWtCvs.width" :height="hdWtCvs.vwFtSz" style="background-color: #cccccc"/>
         </div>
         <div class="mt-5">
+          <a-button @click="onHdWtCancel">撤销</a-button>
           <a-button type="primary" @click="onHdWtFinish">完成</a-button>
-          <a-button type="primary" @click="onHdWtNext" ghost>下一个</a-button>
         </div>
       </template>
       <canvas id="hdWtCanvas"
@@ -21,6 +23,7 @@
       >
         你的浏览器不支持canvas，请升级浏览器
       </canvas>
+      <a-button type="primary" @click="onHdWtNext" ghost block>下一个</a-button>
     </a-modal>
     <div :style="`position: fixed; right: 0; bottom: ${bottom}px; padding: 1vh 1vw`">
       <ctrl-panel
@@ -115,7 +118,8 @@ export default {
         words: [],
         writeBoard: null,
         viewBoard: null,
-        vwContext: null
+        vwContext: null,
+        vwFtSz: 64
       }
     }
   },
@@ -152,8 +156,16 @@ export default {
   },
   methods: {
     posToCvs (cvs, e) {
-      const x = e.clientX || e.touches[0].clientX
-      const y = e.clientY || e.touches[0].clientY
+      let x = 0, y = 0
+      if (typeof e.clientX !== 'undefined') {
+        x = e.clientX
+        y = e.clientY
+      } else if (e.touches && e.touches.length) {
+        x = e.touches[0].clientX
+        y = e.touches[0].clientY
+      } else {
+        return {x, y}
+      }
       const bbox = cvs.getBoundingClientRect()
       return {
         x: x - bbox.left * (cvs.width / bbox.width),
@@ -277,9 +289,12 @@ export default {
         rect.rect.down = false
         this.hdWrteDlg.visible = true
         this.operRect = rect
+        this.hdWtCvs.words = rect.data
         document.body.style.cursor = 'default'
         if (!this.hdWtCvs.viewBoard || !this.hdWtCvs.writeBoard) {
           this.initHdWtCvs()
+        } else {
+          this.refreshHdWtBoard()
         }
       } else if (rect.btnClose.down) {
         if (rect.mode === 'edit') {
@@ -362,7 +377,8 @@ export default {
       )
       context.save()
       context.beginPath()
-      if (this.tempInfo.storeRect.width !== 1
+      if (this.mode
+      && this.tempInfo.storeRect.width !== 1
       && this.tempInfo.storeRect.height !== 1) {
         this.drawSelRect(this.tempInfo.storeRect, 'store')
       }
@@ -384,12 +400,12 @@ export default {
         rect.rect.t = top
         rect.rect.r = left + width
         rect.rect.b = top + height
-        if (!this.mode && rect.data.length) {
+        context.fillStyle = `rgba(${utils.clrMap[`${mode}RGB`]}, ${!rect.rect.down ? '.3' : '1'})`
+        context.fillRect(left, top, width, height)
+        if (!this.mode && rect.data && rect.data.length) {
           this.drawHdWtWds(context, rect.data, height, height, left, top)
           return
         }
-        context.fillStyle = `rgba(${utils.clrMap[`${mode}RGB`]}, ${!rect.rect.down ? '.3' : '1'})`
-        context.fillRect(left, top, width, height)
         if (rect.desc) {
           const fontSz = Math.min(width / rect.desc.length, height)
           context.fillStyle = utils.clrMap[mode]
@@ -650,7 +666,7 @@ export default {
       const hdWtVwCvs = document.getElementById('hdWtVwCvs')
       this.hdWtCvs.vwContext = hdWtVwCvs.getContext('2d')
       this.hdWtCvs.viewBoard = this.hdWtCvs.vwContext.getImageData(
-        0, 0, this.hdWtCvs.width, 32
+        0, 0, this.hdWtCvs.width, this.hdWtCvs.vwFtSz
       )
       this.refreshHdWtBoard()
 
@@ -688,6 +704,10 @@ export default {
       )
       this.hdWtCvs.lastStk = []
     },
+    onHdWtCancel () {
+      this.hdWtCvs.words.pop()
+      this.refreshHdWtBoard()
+    },
     onHdWtFinish () {
       this.hdWtCvs.strokes = []
       this.hdWtCvs.lastStk = []
@@ -695,6 +715,7 @@ export default {
       this.hdWtCvs.words = []
       this.operRect = null
       this.hdWrteDlg.visible = false
+      this.hdWtCvs.vwContext.putImageData(this.hdWtCvs.viewBoard, 0, 0)
       this.refreshScreen()
     },
     onHdWtNext () {
@@ -725,8 +746,12 @@ export default {
       )
       const context = this.hdWtCvs.vwContext
       context.putImageData(this.hdWtCvs.viewBoard, 0, 0)
-      context.beginPath()
-      this.drawHdWtWds(context, this.hdWtCvs.words, 32, 32)
+      if (this.hdWtCvs.words.length) {
+        context.beginPath()
+        this.drawHdWtWds(context, this.hdWtCvs.words,
+          this.hdWtCvs.vwFtSz, this.hdWtCvs.vwFtSz
+        )
+      }
     },
     drawHdWtWds (context, hdWtWds, bdWid, bdHgt, bdLft = 0, bdTop = 0) {
       for (let i = 0; i < hdWtWds.length; ++i) {
