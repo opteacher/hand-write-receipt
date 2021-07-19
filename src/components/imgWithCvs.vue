@@ -400,12 +400,12 @@ export default {
         rect.rect.t = top
         rect.rect.r = left + width
         rect.rect.b = top + height
-        context.fillStyle = `rgba(${utils.clrMap[`${mode}RGB`]}, ${!rect.rect.down ? '.3' : '1'})`
-        context.fillRect(left, top, width, height)
         if (!this.mode && rect.data && rect.data.length) {
           this.drawHdWtWds(context, rect.data, height, height, left, top)
           return
         }
+        context.fillStyle = `rgba(${utils.clrMap[`${mode}RGB`]}, ${!rect.rect.down ? '.3' : '1'})`
+        context.fillRect(left, top, width, height)
         if (rect.desc) {
           const fontSz = Math.min(width / rect.desc.length, height)
           context.fillStyle = utils.clrMap[mode]
@@ -765,6 +765,14 @@ export default {
         }
         context.stroke()
       }
+    },
+    validReceipt () {
+      for (const editRect of this.tempInfo.editRects) {
+        if (!editRect.data.length) {
+          return false
+        }
+      }
+      return true
     },
     cutReceipt (rcptName) {
       const left = this.tempInfo.storeRect.left * this.cvsInfo.width

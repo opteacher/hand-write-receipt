@@ -50,5 +50,22 @@ module.exports = {
     store: '#1890ff',
     editRGB: '255, 77, 79',
     storeRGB: '24, 144, 255'
+  },
+  posToCvs (cvs, e) {
+    let x = 0, y = 0
+    if (typeof e.clientX !== 'undefined') {
+      x = e.clientX
+      y = e.clientY
+    } else if (e.touches && e.touches.length) {
+      x = e.touches[0].clientX
+      y = e.touches[0].clientY
+    } else {
+      return {x, y}
+    }
+    const bbox = cvs.getBoundingClientRect()
+    return {
+      x: x - bbox.left * (cvs.width / bbox.width),
+      y: y - bbox.top * (cvs.height / bbox.height)
+    }
   }
 }

@@ -6,7 +6,7 @@
     <div v-else>
       <img-with-cvs ref="img-with-cvs" :bottom="47" :tempInfo="tempInfo"/>
       <div class="fix-bottom">
-        <a-button type="primary" block @click="sbtInfo.visible = true">提交</a-button>
+        <a-button type="primary" block @click="onReceiptClicked">提交</a-button>
         <a-modal title="个人信息" centered
           :visible="sbtInfo.visible"
           :confirm-loading="sbtInfo.loading"
@@ -59,6 +59,13 @@ export default {
     this.tempInfo = result[0]
   },
   methods: {
+    onReceiptClicked () {
+      if (this.$refs['img-with-cvs'].validReceipt()) {
+        this.sbtInfo.visible = true
+      } else {
+        this.$message.error('请完整填写所需信息！')
+      }
+    },
     async onReceiptSubmit () {
       this.sbtInfo.loading = true
       const rcptName = `${this.sbtInfo.topic}-${this.sbtInfo.name}.png`

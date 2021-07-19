@@ -31,6 +31,11 @@
   margin-right: 8px !important;
 }
 
+.mtb-5 {
+  margin-top: 5px !important;
+  margin-bottom: 5px !important; 
+}
+
 .mtb-10 {
   margin-top: 10px !important;
   margin-bottom: 10px !important; 
@@ -39,6 +44,15 @@
 .ptb-10 {
   padding-top: 10px !important;
   padding-bottom: 10px !important; 
+}
+
+.p-1pc {
+  padding: 1vh 1vw !important;
+}
+
+.plr-5pc {
+  padding-left: 5vw !important;
+  padding-right: 5vw !important;
 }
 
 .center-container {
@@ -57,6 +71,14 @@
   left: 0;
   right: 0;
   bottom: 0;
+  padding: 1vh 1vw;
+}
+
+.fix-top {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
   padding: 1vh 1vw;
 }
 
