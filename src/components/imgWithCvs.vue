@@ -1,7 +1,12 @@
 <template>
   <div class="fix-scroll" :style="`top: ${top}px; bottom: ${bottom}px`">
-    <canvas id="tagsCanvas" :width="cvsInfo.width" :height="cvsInfo.height"
-      :style="`left: ${cvsInfo.left}px; top: ${cvsInfo.top}px`"
+    <canvas id="tagsCanvas"
+      :style="[
+        `left: ${cvsInfo.left}px`,
+        `top: ${cvsInfo.top}px`,
+        `width: ${cvsInfo.width}px`,
+        `height: ${cvsInfo.height}px`
+      ].join(';')"
     >
       你的浏览器不支持canvas，请升级浏览器
     </canvas>
@@ -23,7 +28,7 @@
       >
         你的浏览器不支持canvas，请升级浏览器
       </canvas>
-      <a-button type="primary" @click="onHdWtNext" ghost block>下一个</a-button>
+      <!-- <a-button type="primary" @click="onHdWtNext" ghost block>下一个</a-button> -->
     </a-modal>
     <div :style="`position: fixed; right: 0; bottom: ${bottom}px; padding: 1vh 1vw`">
       <ctrl-panel
@@ -119,7 +124,8 @@ export default {
         writeBoard: null,
         viewBoard: null,
         vwContext: null,
-        vwFtSz: 64
+        vwFtSz: 64,
+        ctDwnHdl: null
       }
     }
   },
@@ -166,15 +172,17 @@ export default {
       } else {
         return {x, y}
       }
-      const bbox = cvs.getBoundingClientRect()
+      const bbox = cvs.canvas.getBoundingClientRect()
       return {
         x: x - bbox.left * (cvs.width / bbox.width),
         y: y - bbox.top * (cvs.height / bbox.height)
       }
     },
     onMouseDown (e) {
-      e.preventDefault()
-      this.mousedown = this.posToCvs(this.cvsInfo.canvas, e)
+      if (this.mode) {
+        e.preventDefault()
+      }
+      this.mousedown = this.posToCvs(this.cvsInfo, e)
       for (const editRect of this.tempInfo.editRects) {
         this.mosDownInRect(editRect)
       }
@@ -187,8 +195,10 @@ export default {
       this.refreshScreen()
     },
     onMouseMove (e) {
-      e.preventDefault()
-      const mosPos = this.posToCvs(this.cvsInfo.canvas, e)
+      if (this.mode) {
+        e.preventDefault()
+      }
+      const mosPos = this.posToCvs(this.cvsInfo, e)
       if (this.dragging) {
         this.clrLastHis()
         this.updSelRect(mosPos)
@@ -201,7 +211,9 @@ export default {
       }
     },
     onMouseUp (e) {
-      e.preventDefault()
+      if (this.mode) {
+        e.preventDefault()
+      }
       for (const editRect of this.tempInfo.editRects) {
         this.mosUpInRect(editRect)
       }
@@ -211,7 +223,7 @@ export default {
       if (this.dragging) {
         this.dragging = false
         const bdRect = this.buildRect(
-          this.mousedown, this.posToCvs(this.cvsInfo.canvas, e)
+          this.mousedown, this.posToCvs(this.cvsInfo, e)
         )
         let rect = null
         if (this.mode === 'edit') {
@@ -580,9 +592,12 @@ export default {
       }
     },
     updCanvasWH () {
-      this.cvsInfo.width = document.body.clientWidth * (this.cvsInfo.zoom / 100)
-      this.cvsInfo.height = this.cvsInfo.width /
-        this.cvsInfo.image.width * this.cvsInfo.image.height
+      this.cvsInfo.width= document.body.clientWidth * (this.cvsInfo.zoom / 100)
+      this.cvsInfo.height = this.cvsInfo.width / this.cvsInfo.image.width * this.cvsInfo.image.height
+      const scale = window.devicePixelRatio
+      this.cvsInfo.canvas.width = Math.floor(this.cvsInfo.width * scale)
+      this.cvsInfo.canvas.height = Math.floor(this.cvsInfo.height * scale)
+      this.cvsInfo.context.scale(scale, scale)
       this.cvsInfo.rcpWid = 1 / this.cvsInfo.width
       this.cvsInfo.rcpHgt = 1 / this.cvsInfo.height
     },
@@ -619,7 +634,7 @@ export default {
     },
     addHistory () {
       this.history.push(this.cvsInfo.context.getImageData(
-        0, 0, this.cvsInfo.width, this.cvsInfo.height
+        0, 0, this.cvsInfo.canvas.width, this.cvsInfo.canvas.height
       ))
     },
     resetRect (rect, mode, force = false) {
@@ -677,13 +692,14 @@ export default {
     onTouchStart (e) {
       e.preventDefault()
       this.hdWtCvs.writing = true
+      clearTimeout(this.hdWtCvs.ctDwnHdl)
     },
     onTouchMove (e) {
       e.preventDefault()
       if (!this.hdWtCvs.writing || !this.hdWtCvs.context) {
         return
       }
-      const mosPos = this.posToCvs(this.hdWtCvs.canvas, e)
+      const mosPos = this.posToCvs(this.hdWtCvs, e)
       const context = this.hdWtCvs.context
       if (this.hdWtCvs.lastStk.length) {
         const lstPos = this.hdWtCvs.lastStk[
@@ -703,6 +719,7 @@ export default {
         this.hdWtCvs.lastStk
       )
       this.hdWtCvs.lastStk = []
+      this.hdWtCvs.ctDwnHdl = setTimeout(this.onHdWtNext, 1000)
     },
     onHdWtCancel () {
       this.hdWtCvs.words.pop()
@@ -775,10 +792,10 @@ export default {
       return true
     },
     cutReceipt (rcptName) {
-      const left = this.tempInfo.storeRect.left * this.cvsInfo.width
-      const top = this.tempInfo.storeRect.top * this.cvsInfo.height
-      const width = this.tempInfo.storeRect.width * this.cvsInfo.width
-      const height = this.tempInfo.storeRect.height * this.cvsInfo.height
+      const left = this.tempInfo.storeRect.left * this.cvsInfo.canvas.width
+      const top = this.tempInfo.storeRect.top * this.cvsInfo.canvas.height
+      const width = this.tempInfo.storeRect.width * this.cvsInfo.canvas.width
+      const height = this.tempInfo.storeRect.height * this.cvsInfo.canvas.height
       const rcptData =  this.cvsInfo.context.getImageData(left, top, width, height)
       const path = '/hand-write-receipt/api/v1/receipt/data/upload'
       return utils.reqBack(this, path, 'post', {
