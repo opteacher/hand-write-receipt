@@ -1,8 +1,8 @@
 <template>
   <div class="h-100">
     <div v-if="!tempInfo.imgURL">
-      <div class="center-container temp-list">
-        <a-list class="w-100" bordered item-layout="horizontal" :data-source="templates">
+      <div class="fix-scroll p-1pc" style="bottom: 47px">
+        <a-list class="w-100 h-100" bordered item-layout="horizontal" :data-source="templates">
           <a-list-item slot="renderItem" slot-scope="temp">
             <div class="lg-sg-r-container " style="width: 60vw">
               <a class="long-single-row" @click="onTempClicked(temp)">{{temp.name}}</a>
@@ -20,7 +20,6 @@
             '/hand-write-receipt',
             '/api/v1/template/file/upload'
           ].join('')"
-          :beforeUpload="onStartUpload"
           @change="onSelImgChanged"
         >
           <a-button type="primary" :loading="uploading">上传模板图片</a-button>
@@ -46,13 +45,18 @@
       <div class="fix-bottom">
         <div class="mb-5 d-flex justify-content-around">
           <a-button class="w-100 mr-1"
+            :class="mode === 'select' ? 'bg-success text-white' : ''"
+            :disabled="mode !== 'view' && mode !== 'select'"
+            @click="mode = mode !== 'select' ? 'select' : 'view'"
+          >标记需勾选区域</a-button>
+          <a-button class="w-100 mr-1"
             :type="mode === 'edit' ? 'danger' : 'default'"
-            :disabled="mode === 'store'"
+            :disabled="mode !== 'view' && mode !== 'edit'"
             @click="mode = mode !== 'edit' ? 'edit' : 'view'"
           >标记需编辑区域</a-button>
           <a-button class="w-100"
             :type="mode === 'store' ? 'primary' : 'default'"
-            :disabled="mode === 'edit'"
+            :disabled="mode !== 'view' && mode !== 'store'"
             @click="mode = mode !== 'store' ? 'store' : 'view'"
           >标记回执区域</a-button>
         </div>
@@ -91,6 +95,7 @@ export default {
         _id: '',
         imgURL: '',
         editRects: [],
+        selectRects: [],
         storeRect: {
           width: 1, height: 1
         }
@@ -114,7 +119,7 @@ export default {
       ) || []
     },
     async onSelImgChanged (e) {
-      this.uploading = false
+      this.uploading = e.file.status !== 'done'
       if (e.file.response) {
         const resp = e.file.response
         if (resp.error) {
@@ -142,6 +147,11 @@ export default {
       delete this.tempInfo._id
       await utils.reqBack(this, path, method, Object.assign(this.tempInfo, {
         editRects: this.tempInfo.editRects.map(rect => ({
+          left: rect.left, top: rect.top,
+          width: rect.width, height: rect.height,
+          desc: rect.desc
+        })),
+        selectRects: this.tempInfo.selectRects.map(rect => ({
           left: rect.left, top: rect.top,
           width: rect.width, height: rect.height,
           desc: rect.desc
@@ -178,14 +188,11 @@ export default {
         name: '',
         imgURL: '',
         editRects: [],
+        selectRects: [],
         storeRect: {
           width: 1, height: 1
         }
       }
-    },
-    onStartUpload () {
-      this.uploading = true
-      return Promise.resolve()
     }
   }
 }
@@ -194,15 +201,6 @@ export default {
 <style>
 .ant-page-header-back {
   margin-top: 3px !important;
-}
-
-.temp-list {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 47px;
-  padding: 1vh 1vw;
-  overflow-y: scroll;
 }
 
 .ant-page-header-heading-sub-title {

@@ -5,6 +5,7 @@ module.exports = db.defineModel({
   name: db.Types.String,
   imgURL: db.Types.String,
   editRects: db.Types.Array,
+  selectRects: db.Types.Array,
   storeRect: {
     left: db.Types.Number,
     top: db.Types.Number,

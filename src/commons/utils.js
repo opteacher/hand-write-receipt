@@ -47,8 +47,10 @@ module.exports = {
   },
   clrMap: {
     edit: '#ff4d4f',
+    select: '#28a745',
     store: '#1890ff',
     editRGB: '255, 77, 79',
+    selectRGB: '40, 167, 69',
     storeRGB: '24, 144, 255'
   },
   posToCvs (cvs, e) {

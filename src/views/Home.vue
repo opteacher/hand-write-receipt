@@ -38,6 +38,7 @@ export default {
       tempInfo: {
         imgURL: '',
         editRects: [],
+        selectRects: [],
         storeRect: {
           width: 1, height: 1
         }

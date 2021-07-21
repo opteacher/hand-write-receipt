@@ -66,6 +66,7 @@ export default {
       default: () => ({
         imgURL: '',
         editRects: [],
+        selectRects: [],
         storeRect: {
           width: 1, height: 1
         }
@@ -95,6 +96,8 @@ export default {
         height: 0,
         canvas: null,
         context: null,
+        writing: false,
+        stroke: [],
         rcpWid: 0,
         rcpHgt: 0
       },
@@ -103,6 +106,9 @@ export default {
       operRect: null,
       mousedown: {
         x: 0, y: 0
+      },
+      mouseup: {
+        x: -1, y: -1
       },
       selColor: null,
       editDescDlg: {
@@ -132,9 +138,8 @@ export default {
   async created () {
     await utils.until(() => this.tempInfo.imgURL)
     this.resetRect(this.tempInfo.storeRect, 'store')
-    for (let i = 0; i < this.tempInfo.editRects.length; ++i) {
-      this.resetRect(this.tempInfo.editRects[i], 'edit')
-    }
+    this.fechEdtRect('edit', this.resetRect)
+    this.fechEdtRect('select', this.resetRect)
     this.cvsInfo.canvas = document.getElementById('tagsCanvas')
     this.cvsInfo.context = this.cvsInfo.canvas.getContext('2d')
     this.cvsInfo.image = new Image()
@@ -161,6 +166,11 @@ export default {
     this.refreshScreen()
   },
   methods: {
+    fechEdtRect (mode, func) {
+      for (const rect of this.tempInfo[`${mode}Rects`]) {
+        func(rect, mode)
+      }
+    },
     posToCvs (cvs, e) {
       let x = 0, y = 0
       if (typeof e.clientX !== 'undefined') {
@@ -183,13 +193,12 @@ export default {
         e.preventDefault()
       }
       this.mousedown = this.posToCvs(this.cvsInfo, e)
-      for (const editRect of this.tempInfo.editRects) {
-        this.mosDownInRect(editRect)
-      }
-      if (!this.mode) {
+      this.fechEdtRect('edit', this.mosDownInRect)
+      this.fechEdtRect('select', this.mosDownInRect)
+      if (this.mode) {
         this.mosDownInRect(this.tempInfo.storeRect)
       }
-      if (this.mode === 'edit' || this.mode === 'store') {
+      if (this.mode && this.mode !== 'view') {
         this.dragging = true
       }
       this.refreshScreen()
@@ -201,54 +210,42 @@ export default {
       const mosPos = this.posToCvs(this.cvsInfo, e)
       if (this.dragging) {
         this.clrLastHis()
-        this.updSelRect(mosPos)
-      }
-      for (const editRect of this.tempInfo.editRects) {
-        this.mosMoveInRect(editRect, mosPos)
-      }
-      if (!this.mode) {
-        this.mosMoveInRect(this.tempInfo.storeRect, mosPos)
+        this.updCreateRect(mosPos, this.mode === 'select')
+      } else if (this.cvsInfo.writing) {
+        this.updHdWtStroke(mosPos)
+      } else {
+        this.fechEdtRect('edit', rect => {this.mosMoveInRect(rect, mosPos)})
+        this.fechEdtRect('select', rect => {this.mosMoveInRect(rect, mosPos)})
+        if (this.mode) {
+          this.mosMoveInRect(this.tempInfo.storeRect, mosPos)
+        }
       }
     },
     onMouseUp (e) {
       if (this.mode) {
         e.preventDefault()
       }
-      for (const editRect of this.tempInfo.editRects) {
-        this.mosUpInRect(editRect)
-      }
-      if (!this.mode) {
+      this.fechEdtRect('edit', this.mosUpInRect)
+      this.fechEdtRect('select', this.mosUpInRect)
+      if (this.mode) {
         this.mosUpInRect(this.tempInfo.storeRect)
       }
       if (this.dragging) {
-        this.dragging = false
-        const bdRect = this.buildRect(
-          this.mousedown, this.posToCvs(this.cvsInfo, e)
-        )
-        let rect = null
-        if (this.mode === 'edit') {
-          if (this.operRect) {
-            rect = this.operRect
-          } else {
-            rect = this.resetRect({}, 'edit')
-            this.tempInfo.editRects.push(rect)
-          }
-        } else {
-          rect = this.tempInfo.storeRect
-        }
-        rect.left = bdRect.left
-        rect.top = bdRect.top
-        rect.width = bdRect.width
-        rect.height = bdRect.height
-        if (this.onSelRectCreated) {
-          this.onSelRectCreated('view')
-        }
+        this.finCreateRect(e)
+      } else if (this.cvsInfo.writing) {
+        this.finSelectOpn()
       }
       this.refreshScreen()
     },
     mosDownInRect (rect) {
       if (!this.mode && this.insideBox(rect.rect, this.mousedown)) {
-        rect.rect.down = true
+        if (rect.mode === 'select') {
+          rect.show = false
+          this.cvsInfo.writing = true
+          this.operRect = rect
+        } else {
+          rect.rect.down = true
+        }
       } else if (rect.btnClose.in) {
         rect.btnClose.down = true
       } else if (rect.btnDesc && rect.btnDesc.in) {
@@ -297,22 +294,30 @@ export default {
       }
     },
     mosUpInRect (rect) {
-      if (!this.mode && rect.mode === 'edit' && rect.rect.down) {
-        rect.rect.down = false
-        this.hdWrteDlg.visible = true
-        this.operRect = rect
-        this.hdWtCvs.words = rect.data
-        document.body.style.cursor = 'default'
-        if (!this.hdWtCvs.viewBoard || !this.hdWtCvs.writeBoard) {
-          this.initHdWtCvs()
-        } else {
-          this.refreshHdWtBoard()
+      if (!this.mode && rect.rect.down) {
+        switch (rect.mode) {
+        case 'edit':
+          rect.rect.down = false
+          this.hdWrteDlg.visible = true
+          this.operRect = rect
+          this.hdWtCvs.words = rect.data
+          document.body.style.cursor = 'default'
+          if (!this.hdWtCvs.viewBoard || !this.hdWtCvs.writeBoard) {
+            this.initHdWtCvs()
+          } else {
+            this.refreshHdWtBoard()
+          }
+          break
+        case 'select':
+          rect.rect.down = false
+          break
         }
       } else if (rect.btnClose.down) {
-        if (rect.mode === 'edit') {
-          for (let i = 0; i < this.tempInfo.editRects.length; ++i) {
-            if (rect === this.tempInfo.editRects[i]) {
-              this.tempInfo.editRects.splice(i, 1)
+        if (rect.mode === 'edit' || rect.mode === 'select') {
+          const rects = this.tempInfo[`${rect.mode}Rects`]
+          for (let i = 0; i < rects.length; ++i) {
+            if (rect === rects[i]) {
+              rects.splice(i, 1)
             }
           }
         } else {
@@ -359,11 +364,19 @@ export default {
         attr.in = false
       }
     },
-    updSelRect (tgtPoi) {
+    updCreateRect (tgtPoi, square) {
+      let width = Math.abs(tgtPoi.x - this.mousedown.x)
+      let height = Math.abs(tgtPoi.y - this.mousedown.y)
+      if (square) {
+        width = Math.min(width, height)
+        height = width
+        tgtPoi.x = this.mousedown.x + (tgtPoi.x < this.mousedown.x ? -width : width)
+        tgtPoi.y = this.mousedown.y + (tgtPoi.y < this.mousedown.y ? -height : height)
+        this.mouseup.x = tgtPoi.x
+        this.mouseup.y = tgtPoi.y
+      }
       const left = Math.min(tgtPoi.x, this.mousedown.x)
       const top = Math.min(tgtPoi.y, this.mousedown.y)
-      const width = Math.abs(tgtPoi.x - this.mousedown.x)
-      const height = Math.abs(tgtPoi.y - this.mousedown.y)
 
       const context = this.cvsInfo.context
       context.save()
@@ -377,6 +390,72 @@ export default {
         )
       }
       context.restore()
+    },
+    finCreateRect (e) {
+      this.dragging = false
+      let mosPos = this.mouseup
+      if (this.mouseup.x === -1 || this.mouseup.y === -1) {
+        mosPos = this.posToCvs(this.cvsInfo, e)
+      }
+      const bdRect = this.buildRect(this.mousedown, mosPos)
+      this.mouseup = {x: -1, y: -1}
+      let rect = null
+      if (this.mode == 'edit' || this.mode === 'select') {
+        if (this.operRect) {
+          rect = this.operRect
+        } else {
+          rect = this.resetRect({}, this.mode)
+          this.tempInfo[`${this.mode}Rects`].push(rect)
+        }
+      } else {
+        rect = this.tempInfo.storeRect
+      }
+      rect.left = bdRect.left
+      rect.top = bdRect.top
+      rect.width = bdRect.width
+      rect.height = bdRect.height
+      if (this.onSelRectCreated) {
+        this.onSelRectCreated('view')
+      }
+    },
+    finSelectOpn () {
+      this.cvsInfo.writing = false
+      if (this.cvsInfo.stroke.length) {
+        let left = this.cvsInfo.stroke[0].x,
+          top = this.cvsInfo.stroke[0].y,
+          right = 0, bottom = 0
+        for (const point of this.cvsInfo.stroke) {
+          if (point.x > right) {
+            right = point.x
+          } else if (point.x < left) {
+            left = point.x
+          }
+          if (point.y > bottom) {
+            bottom = point.y
+          } else if (point.y < top) {
+            top = point.y
+          }
+        }
+        this.normWord(this.cvsInfo.stroke,
+          1 / (right - left), 1 / (bottom - top), left, top
+        )
+        this.operRect.data = [[this.cvsInfo.stroke]]
+        this.cvsInfo.stroke = []
+        this.operRect = null
+      }
+    },
+    updHdWtStroke (mosPos) {
+      const context = this.cvsInfo.context
+      if (this.cvsInfo.stroke.length) {
+        const lstPos = this.cvsInfo.stroke[
+          this.cvsInfo.stroke.length - 1
+        ]
+        context.beginPath()
+        context.moveTo(lstPos.x, lstPos.y)
+        context.lineTo(mosPos.x, mosPos.y)
+        context.stroke()
+      }
+      this.cvsInfo.stroke.push(mosPos)
     },
     refreshScreen () {
       if (!this.cvsInfo.context) {
@@ -392,15 +471,14 @@ export default {
       if (this.mode
       && this.tempInfo.storeRect.width !== 1
       && this.tempInfo.storeRect.height !== 1) {
-        this.drawSelRect(this.tempInfo.storeRect, 'store')
+        this.drawRect(this.tempInfo.storeRect, 'store')
       }
-      for (const editRect of this.tempInfo.editRects) {
-        this.drawSelRect(editRect, 'edit')
-      }
+      this.fechEdtRect('edit', this.drawRect)
+      this.fechEdtRect('select', this.drawRect)
       context.restore()
       this.addHistory()
     },
-    drawSelRect (rect, mode) {
+    drawRect (rect, mode) {
       if (rect.width && rect.height) {
         const left = rect.left * this.cvsInfo.width
         const top = rect.top * this.cvsInfo.height
@@ -414,6 +492,9 @@ export default {
         rect.rect.b = top + height
         if (!this.mode && rect.data && rect.data.length) {
           this.drawHdWtWds(context, rect.data, height, height, left, top)
+          return
+        }
+        if (!rect.show) {
           return
         }
         context.fillStyle = `rgba(${utils.clrMap[`${mode}RGB`]}, ${!rect.rect.down ? '.3' : '1'})`
@@ -643,6 +724,7 @@ export default {
         in: false, down: false
       })
       rect.mode = mode
+      rect.show = true
       rect.left = force ? 0 : (rect.left || 0)
       rect.top = force ? 0 : (rect.top || 0)
       const dftWH = mode === 'store' ? 1 : 0
@@ -665,6 +747,8 @@ export default {
       }, rctBtn())
       if (rect.mode === 'edit') {
         rect.btnDesc = rctBtn()
+      }
+      if (rect.mode !== 'store') {
         rect.data = []
       }
       return rect
@@ -742,16 +826,18 @@ export default {
       this.normLastWord()
       this.refreshHdWtBoard()
     },
+    normWord (strokes, rcpWid, rcpHgt, left = 0, top = 0) {
+      for (let i = 0; i < strokes.length; ++i) {
+        strokes[i].x = (strokes[i].x - left) * rcpWid
+        strokes[i].y = (strokes[i].y - top) * rcpHgt
+      }
+    },
     normLastWord () {
       const rcpWid = 1 / this.hdWtCvs.width
       const rcpHgt = 1 / this.hdWtCvs.height
       const lastIdx = this.hdWtCvs.words.length - 1
-      for (let j = 0; j < this.hdWtCvs.words[lastIdx].length; ++j) {
-        for (let t = 0; t < this.hdWtCvs.words[lastIdx][j].length; ++t) {
-          const point = this.hdWtCvs.words[lastIdx][j][t]
-          this.hdWtCvs.words[lastIdx][j][t].x = point.x * rcpWid
-          this.hdWtCvs.words[lastIdx][j][t].y = point.y * rcpHgt
-        }
+      for (let i = 0; i < this.hdWtCvs.words[lastIdx].length; ++i) {
+        this.normWord(this.hdWtCvs.words[lastIdx][i], rcpWid, rcpHgt)
       }
     },
     refreshHdWtBoard () {
@@ -784,10 +870,11 @@ export default {
       }
     },
     validReceipt () {
-      for (const editRect of this.tempInfo.editRects) {
-        if (!editRect.data.length) {
-          return false
-        }
+      if (this.tempInfo.editRects.find(rect => !rect.data.length)) {
+        return false
+      }
+      if (this.tempInfo.selectRects.find(rect => !rect.data.length)) {
+        return false
       }
       return true
     },
