@@ -12,8 +12,8 @@ router.post('/data/upload', async ctx => {
   const data = ctx.request.body.data
 
   const newPNG = new PNG({width, height})
-  for (const [index, value] of Object.entries(data)) {
-    newPNG.data[index] = value
+  for (let i = 0; i < newPNG.data.length; ++i) {
+    newPNG.data[i] = (i in data) ? data[i] : 255
   }
   const imgBuf = PNG.sync.write(newPNG.pack(), {colorType: 6})
   const bufferStream = new stream.PassThrough()

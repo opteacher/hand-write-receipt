@@ -906,12 +906,18 @@ export default {
       const width = this.tempInfo.storeRect.width * this.cvsInfo.canvas.width
       const height = this.tempInfo.storeRect.height * this.cvsInfo.canvas.height
       const rcptData =  this.cvsInfo.context.getImageData(left, top, width, height)
+      let imgData = {}
+      for (const [key, value] of Object.entries(rcptData.data)) {
+        if (value <= 240) {
+          imgData[key] = value
+        }
+      }
       const path = '/hand-write-receipt/api/v1/receipt/data/upload'
       return utils.reqBack(this, path, 'post', {
         fileName: rcptName,
         width: rcptData.width,
         height: rcptData.height,
-        data: rcptData.data
+        data: imgData
       })
     }
   }
