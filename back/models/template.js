@@ -3,7 +3,11 @@ const db = require('../databases/mongo')
 module.exports = db.defineModel({
   __modelName: 'template',
   name: db.Types.String,
-  imgURL: db.Types.String,
+  require: {
+    duration: db.Types.Number,
+    needViewToEnd: db.Types.Boolean
+  },
+  imgURLs: db.Types.Array,
   editRects: db.Types.Array,
   selectRects: db.Types.Array,
   storeRect: {

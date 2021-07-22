@@ -1,6 +1,6 @@
 <template>
   <div class="h-100">
-    <div v-if="!tempInfo.imgURL">
+    <div v-if="!tempInfo.imgURLs.length">
       <div class="fix-scroll p-1pc" style="bottom: 47px">
         <a-list class="w-100 h-100" bordered item-layout="horizontal" :data-source="templates">
           <a-list-item slot="renderItem" slot-scope="temp">
@@ -36,12 +36,29 @@
           <a-button type="primary" icon="eye"
             @click="$router.push(`/hand-write-receipt/home?t=${tempInfo._id}`)"
           />
+          <a-button type="primary" icon="setting" ghost
+            @click="configDlg.visible = true"
+          />
         </template>
       </a-page-header>
-      <img-with-cvs :top="53" :bottom="80"
+      <img-with-cvs ref="img-with-cvs" :top="53" :bottom="80"
         :tempInfo="tempInfo" :mode="mode"
         :onSelRectCreated="(selMode) => {mode = selMode}"
       />
+      <div :style="`position: fixed; left: 0; bottom: 80px; padding: 1vh 1vw`">
+        <a-upload
+          name="file"
+          :showUploadList="false"
+          :action="[
+            utils.bkHost,
+            '/hand-write-receipt',
+            '/api/v1/template/file/upload'
+          ].join('')"
+          @change="onSelImgChanged"
+        >
+          <a-button type="primary" :loading="uploading">添加图片</a-button>
+        </a-upload>
+      </div>
       <div class="fix-bottom">
         <div class="mb-5 d-flex justify-content-around">
           <a-button class="w-100 mr-1"
@@ -68,9 +85,23 @@
           @ok="onTempSubmit"
           @cancel="configDlg.visible = false"
         >
-          <a-input-search placeholder="输入模板名" v-model="tempInfo.name">
-            <a-button slot="enterButton" @click.native="onUseImgNameClicked">使用图片名</a-button>
-          </a-input-search>
+          <a-form>
+            <a-form-item>
+              <a-input-search placeholder="输入模板名" v-model="tempInfo.name">
+                <a-button slot="enterButton" @click.native="onUseImgNameClicked">使用图片名</a-button>
+              </a-input-search>
+            </a-form-item>
+            <a-form-item>
+              <a-input-number class="w-100" placeholder="输入规定浏览时限"
+                :min="0" v-model="tempInfo.require.duration"
+              />
+            </a-form-item>
+            <a-form-item>
+              <a-checkbox :checked="tempInfo.require.needViewToEnd" @change="e => {
+                tempInfo.require.needViewToEnd = e.target.checked
+              }">需强制浏览到底</a-checkbox>
+            </a-form-item>
+          </a-form>
         </a-modal>
       </div>
     </div>
@@ -93,7 +124,12 @@ export default {
       uploading: false,
       tempInfo: {
         _id: '',
-        imgURL: '',
+        name: '',
+        require: {
+          duration: 10,
+          needViewToEnd: true
+        },
+        imgURLs: [],
         editRects: [],
         selectRects: [],
         storeRect: {
@@ -104,6 +140,7 @@ export default {
       configDlg: {
         visible: false,
         confirming: false,
+        sbtForm: this.$form.createForm(this, { name: 'tempConfig' })
       },
       utils
     }
@@ -128,7 +165,10 @@ export default {
             content: resp.error,
           })
         } else {
-          this.tempInfo.imgURL = resp.result
+          this.tempInfo.imgURLs.push(resp.result)
+          if (this.$refs['img-with-cvs']) {
+            await this.$refs['img-with-cvs'].updateImages()
+          }
         }
       }
     },
@@ -165,7 +205,7 @@ export default {
       })
     },
     onUseImgNameClicked () {
-      const url = URL.parse(this.tempInfo.imgURL)
+      const url = URL.parse(this.tempInfo.imgURLs[0])
       this.tempInfo.name = path.basename(url.pathname)
     },
     onTempClicked (temp) {
@@ -186,7 +226,11 @@ export default {
       this.tempInfo = {
         _id: '',
         name: '',
-        imgURL: '',
+        require: {
+          duration: 10,
+          needViewToEnd: true
+        },
+        imgURLs: [],
         editRects: [],
         selectRects: [],
         storeRect: {

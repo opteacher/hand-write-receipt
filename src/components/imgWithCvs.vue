@@ -7,9 +7,7 @@
         `width: ${cvsInfo.width}px`,
         `height: ${cvsInfo.height}px`
       ].join(';')"
-    >
-      你的浏览器不支持canvas，请升级浏览器
-    </canvas>
+    >你的浏览器不支持canvas，请升级浏览器</canvas>
     <a-modal title="手写文字" centered :visible="hdWrteDlg.visible" @cancel="hdWrteDlg.visible = false" :bodyStyle="{
       'padding-bottom': '10px'
     }">
@@ -28,7 +26,6 @@
       >
         你的浏览器不支持canvas，请升级浏览器
       </canvas>
-      <!-- <a-button type="primary" @click="onHdWtNext" ghost block>下一个</a-button> -->
     </a-modal>
     <div :style="`position: fixed; right: 0; bottom: ${bottom}px; padding: 1vh 1vw`">
       <ctrl-panel
@@ -64,7 +61,7 @@ export default {
     'tempInfo': {
       type: Object,
       default: () => ({
-        imgURL: '',
+        imgURLs: [],
         editRects: [],
         selectRects: [],
         storeRect: {
@@ -87,7 +84,7 @@ export default {
   data () {
     return {
       cvsInfo: {
-        image: null,
+        images: [],
         left: 0,
         top: 0,
         move: 10,
@@ -136,24 +133,13 @@ export default {
     }
   },
   async created () {
-    await utils.until(() => this.tempInfo.imgURL)
+    await utils.until(() => this.tempInfo.imgURLs.length)
     this.resetRect(this.tempInfo.storeRect, 'store')
     this.fechEdtRect('edit', this.resetRect)
     this.fechEdtRect('select', this.resetRect)
     this.cvsInfo.canvas = document.getElementById('tagsCanvas')
     this.cvsInfo.context = this.cvsInfo.canvas.getContext('2d')
-    this.cvsInfo.image = new Image()
-    this.cvsInfo.image.src = this.tempInfo.imgURL
-    this.cvsInfo.image.setAttribute('crossOrigin', '')
-    const self = this
-    await new Promise(resolve => {
-      this.cvsInfo.image.onload = function () {
-        self.updCanvasWH()
-        resolve()
-      }
-    })
-    this.addHistory()
-    this.refreshScreen()
+    await this.updateImages()
     
     this.cvsInfo.canvas.onmousedown = this.onMouseDown
     this.cvsInfo.canvas.onmousemove = this.onMouseMove
@@ -457,15 +443,35 @@ export default {
       }
       this.cvsInfo.stroke.push(mosPos)
     },
+    async updateImages () {
+      this.cvsInfo.images = []
+      for (const imgURL of this.tempInfo.imgURLs) {
+        const newImg = new Image()
+        this.cvsInfo.images.push(newImg)
+        newImg.src = imgURL
+        newImg.setAttribute('crossOrigin', '')
+        await new Promise(resolve => {
+          newImg.onload = resolve
+        })
+      }
+      this.updCanvasWH()
+      this.history = []
+      this.refreshScreen()
+    },
     refreshScreen () {
       if (!this.cvsInfo.context) {
         return
       }
       this.clrScreen()
       const context = this.cvsInfo.context
-      context.drawImage(this.cvsInfo.image,
-        0, 0, this.cvsInfo.width, this.cvsInfo.height
-      )
+      let lastHgt = 0
+      for (const image of this.cvsInfo.images) {
+        const imgHgt = this.cvsInfo.width * image.rcpHgt
+        context.drawImage(image,
+          0, lastHgt, this.cvsInfo.width, imgHgt
+        )
+        lastHgt += imgHgt
+      }
       context.save()
       context.beginPath()
       if (this.mode
@@ -491,7 +497,11 @@ export default {
         rect.rect.r = left + width
         rect.rect.b = top + height
         if (!this.mode && rect.data && rect.data.length) {
-          this.drawHdWtWds(context, rect.data, height, height, left, top)
+          if (rect.data.length * height < width) {
+            this.drawHdWtWds(context, rect.data, height, height, left, top)
+          } else {
+            this.drawHdWtWds(context, rect.data, width / rect.data.length, height, left, top)
+          }
           return
         }
         if (!rect.show) {
@@ -674,7 +684,11 @@ export default {
     },
     updCanvasWH () {
       this.cvsInfo.width= document.body.clientWidth * (this.cvsInfo.zoom / 100)
-      this.cvsInfo.height = this.cvsInfo.width / this.cvsInfo.image.width * this.cvsInfo.image.height
+      this.cvsInfo.height = 0
+      for (const image of this.cvsInfo.images) {
+        image.rcpHgt = 1 / image.width * image.height
+        this.cvsInfo.height += this.cvsInfo.width * image.rcpHgt
+      }
       const scale = window.devicePixelRatio
       this.cvsInfo.canvas.width = Math.floor(this.cvsInfo.width * scale)
       this.cvsInfo.canvas.height = Math.floor(this.cvsInfo.height * scale)
@@ -851,9 +865,16 @@ export default {
       context.putImageData(this.hdWtCvs.viewBoard, 0, 0)
       if (this.hdWtCvs.words.length) {
         context.beginPath()
-        this.drawHdWtWds(context, this.hdWtCvs.words,
-          this.hdWtCvs.vwFtSz, this.hdWtCvs.vwFtSz
-        )
+        const hdWtWdsLen = this.hdWtCvs.words.length
+        if (hdWtWdsLen * this.hdWtCvs.vwFtSz < this.hdWtCvs.viewBoard.width) {
+          this.drawHdWtWds(context, this.hdWtCvs.words,
+            this.hdWtCvs.vwFtSz, this.hdWtCvs.vwFtSz
+          )
+        } else {
+          this.drawHdWtWds(context, this.hdWtCvs.words,
+            this.hdWtCvs.viewBoard.width / hdWtWdsLen, this.hdWtCvs.vwFtSz
+          )
+        }
       }
     },
     drawHdWtWds (context, hdWtWds, bdWid, bdHgt, bdLft = 0, bdTop = 0) {

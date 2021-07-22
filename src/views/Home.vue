@@ -6,7 +6,11 @@
     <div v-else>
       <img-with-cvs ref="img-with-cvs" :bottom="47" :tempInfo="tempInfo"/>
       <div class="fix-bottom">
-        <a-button type="primary" block @click="onReceiptClicked">提交</a-button>
+        <a-button type="primary" block @click="onReceiptClicked"
+          :disabled="sbtInfo.ctDwn !== 0 || !sbtInfo.toEnd"
+        >
+          {{ sbtInfo.ctDwn ? `（${sbtInfo.ctDwn}s）` : (!sbtInfo.toEnd ? '（请浏览到底）' : '') }} 提交
+        </a-button>
         <a-modal title="个人信息" centered
           :visible="sbtInfo.visible"
           :confirm-loading="sbtInfo.loading"
@@ -20,6 +24,17 @@
             </a-button>
           </a-input-search>
         </a-modal>
+        <a-modal centered
+          :bodyStyle="{
+            'text-align': 'center'
+          }"
+          :footer="null"
+          :visible="sbtInfo.loading"
+          :maskClosable="false"
+          :closable="false"
+        >
+          <a-spin tip="提交中..."/>
+        </a-modal>
       </div>
     </div>
   </div>
@@ -28,6 +43,8 @@
 <script>
 import utils from '../commons/utils'
 import imgWithCvs from '../components/imgWithCvs'
+import $ from 'jquery'
+import { setInterval } from 'timers';
 export default {
   components: {
     'img-with-cvs': imgWithCvs
@@ -36,7 +53,7 @@ export default {
     return {
       noIdMsg: '未指定模板，请携带模板ID再请求该页面！',
       tempInfo: {
-        imgURL: '',
+        imgURLs: [],
         editRects: [],
         selectRects: [],
         storeRect: {
@@ -47,7 +64,9 @@ export default {
         visible: false,
         loading: false,
         name: '',
-        topic: ''
+        topic: '',
+        ctDwn: 0,
+        toEnd: true
       }
     }
   },
@@ -58,6 +77,28 @@ export default {
     const path = `/hand-write-receipt/mdl/v1/template/${this.$route.query.t}`
     const result = await utils.reqBack(this, path, 'get')
     this.tempInfo = result[0]
+    this.sbtInfo.toEnd = !this.tempInfo.require.needViewToEnd
+    this.sbtInfo.ctDwn = this.tempInfo.require.duration
+    if (this.sbtInfo.ctDwn) {
+      const h = setInterval(() => {
+        if (this.sbtInfo.ctDwn > 0) {
+          this.sbtInfo.ctDwn--
+        } else {
+          clearInterval(h)
+        }
+      }, 1000)
+    }
+    if (!this.sbtInfo.toEnd) {
+      const h = setInterval(() => {
+        const viewHgt = $('.fix-scroll').height()
+        const scrlHgt = this.$refs['img-with-cvs'].cvsInfo.height
+        const scrlTop = $("#tagsCanvas").offset().top
+        if (viewHgt - scrlHgt > scrlTop) {
+          this.sbtInfo.toEnd = true
+          clearInterval(h)
+        }
+      }, 1000)
+    }
   },
   methods: {
     onReceiptClicked () {
@@ -68,6 +109,7 @@ export default {
       }
     },
     async onReceiptSubmit () {
+      this.sbtInfo.visible = false
       this.sbtInfo.loading = true
       const rcptName = `${this.sbtInfo.topic}-${this.sbtInfo.name}.png`
       const rcptImgURL = await this.$refs['img-with-cvs'].cutReceipt(rcptName)
@@ -79,7 +121,6 @@ export default {
       })
       console.log(newRcpt)
       this.sbtInfo.loading = false
-      this.sbtInfo.visible = false
       this.$message.success('回执提交成功！')
     }
   }
