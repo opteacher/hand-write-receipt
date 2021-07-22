@@ -41,7 +41,6 @@
 <script>
 import utils from '../commons/utils'
 import imgWithCvs from '../components/imgWithCvs'
-import $ from 'jquery'
 export default {
   components: {
     'img-with-cvs': imgWithCvs
