@@ -85,21 +85,16 @@
           @ok="onTempSubmit"
           @cancel="configDlg.visible = false"
         >
-          <a-form>
-            <a-form-item>
+          <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
+            <a-form-item label="模板名">
               <a-input-search placeholder="输入模板名" v-model="tempInfo.name">
                 <a-button slot="enterButton" @click.native="onUseImgNameClicked">使用图片名</a-button>
               </a-input-search>
             </a-form-item>
-            <a-form-item>
+            <a-form-item label="规定浏览时限">
               <a-input-number class="w-100" placeholder="输入规定浏览时限"
                 :min="0" v-model="tempInfo.require.duration"
               />
-            </a-form-item>
-            <a-form-item>
-              <a-checkbox :checked="tempInfo.require.needViewToEnd" @change="e => {
-                tempInfo.require.needViewToEnd = e.target.checked
-              }">需强制浏览到底</a-checkbox>
             </a-form-item>
           </a-form>
         </a-modal>
@@ -126,8 +121,7 @@ export default {
         _id: '',
         name: '',
         require: {
-          duration: 10,
-          needViewToEnd: true
+          duration: 10
         },
         imgURLs: [],
         editRects: [],
@@ -227,8 +221,7 @@ export default {
         _id: '',
         name: '',
         require: {
-          duration: 10,
-          needViewToEnd: true
+          duration: 10
         },
         imgURLs: [],
         editRects: [],

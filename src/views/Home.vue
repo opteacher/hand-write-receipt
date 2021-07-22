@@ -6,10 +6,8 @@
     <div v-else>
       <img-with-cvs ref="img-with-cvs" :bottom="47" :tempInfo="tempInfo"/>
       <div class="fix-bottom">
-        <a-button type="primary" block @click="onReceiptClicked"
-          :disabled="sbtInfo.ctDwn !== 0 || !sbtInfo.toEnd"
-        >
-          {{ sbtInfo.ctDwn ? `（${sbtInfo.ctDwn}s）` : (!sbtInfo.toEnd ? '（请浏览到底）' : '') }} 提交
+        <a-button type="primary" block @click="onReceiptClicked" :disabled="sbtInfo.ctDwn !== 0">
+          {{ sbtInfo.ctDwn ? `（${sbtInfo.ctDwn}s）` : '' }} 提交
         </a-button>
         <a-modal title="个人信息" centered
           :visible="sbtInfo.visible"
@@ -44,7 +42,6 @@
 import utils from '../commons/utils'
 import imgWithCvs from '../components/imgWithCvs'
 import $ from 'jquery'
-import { setInterval } from 'timers';
 export default {
   components: {
     'img-with-cvs': imgWithCvs
@@ -65,8 +62,7 @@ export default {
         loading: false,
         name: '',
         topic: '',
-        ctDwn: 0,
-        toEnd: true
+        ctDwn: 0
       }
     }
   },
@@ -77,24 +73,12 @@ export default {
     const path = `/hand-write-receipt/mdl/v1/template/${this.$route.query.t}`
     const result = await utils.reqBack(this, path, 'get')
     this.tempInfo = result[0]
-    this.sbtInfo.toEnd = !this.tempInfo.require.needViewToEnd
     this.sbtInfo.ctDwn = this.tempInfo.require.duration
     if (this.sbtInfo.ctDwn) {
       const h = setInterval(() => {
         if (this.sbtInfo.ctDwn > 0) {
           this.sbtInfo.ctDwn--
         } else {
-          clearInterval(h)
-        }
-      }, 1000)
-    }
-    if (!this.sbtInfo.toEnd) {
-      const h = setInterval(() => {
-        const viewHgt = $('.fix-scroll').height()
-        const scrlHgt = this.$refs['img-with-cvs'].cvsInfo.height
-        const scrlTop = $("#tagsCanvas").offset().top
-        if (viewHgt - scrlHgt > scrlTop) {
-          this.sbtInfo.toEnd = true
           clearInterval(h)
         }
       }, 1000)

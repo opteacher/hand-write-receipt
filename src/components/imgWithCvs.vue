@@ -198,6 +198,7 @@ export default {
         this.clrLastHis()
         this.updCreateRect(mosPos, this.mode === 'select')
       } else if (this.cvsInfo.writing) {
+        e.preventDefault()
         this.updHdWtStroke(mosPos)
       } else {
         this.fechEdtRect('edit', rect => {this.mosMoveInRect(rect, mosPos)})

@@ -4,8 +4,7 @@ module.exports = db.defineModel({
   __modelName: 'template',
   name: db.Types.String,
   require: {
-    duration: db.Types.Number,
-    needViewToEnd: db.Types.Boolean
+    duration: db.Types.Number
   },
   imgURLs: db.Types.Array,
   editRects: db.Types.Array,
