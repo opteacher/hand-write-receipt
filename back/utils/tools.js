@@ -124,9 +124,12 @@ const exp = {
     config.zone = qiniu.zone.Zone_z2
 
     const url = `http://cdn.opteacher.top/${key}`
-    const resp = await axios.get(new URL(url).href)
-    const needRefresh = resp.status === 200
-
+    let needRefresh = false
+    try {
+      const resp = await axios.get(new URL(url).href)
+      needRefresh = resp.status === 200
+    } catch (e) {}
+    
     const putPolicy = new qiniu.rs.PutPolicy({
       scope: `${qnCfg.bucket}:${key}`
     })
