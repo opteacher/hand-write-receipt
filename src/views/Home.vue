@@ -4,36 +4,36 @@
       <h5>{{noIdMsg}}</h5>
     </div>
     <div v-else>
-      <img-with-cvs ref="img-with-cvs" :bottom="47" :tempInfo="tempInfo"/>
-      <div class="fix-bottom">
+      <img-with-cvs ref="img-with-cvs" :bottom="sbtInfo.submitted ? 0 : 47" :tempInfo="tempInfo"/>
+      <div v-if="!sbtInfo.submitted" class="fix-bottom">
         <a-button type="primary" block @click="onReceiptClicked" :disabled="sbtInfo.ctDwn !== 0">
           {{ sbtInfo.ctDwn ? `（${sbtInfo.ctDwn}s）` : '' }} 提交
         </a-button>
-        <a-modal title="个人信息" centered
-          :visible="sbtInfo.visible"
-          :confirm-loading="sbtInfo.loading"
-          @ok="onReceiptSubmit"
-          @cancel="sbtInfo.visible = false"
-        >
-          <a-input class="mb-5" placeholder="输入姓名" v-model="sbtInfo.name"/>
-          <a-input-search placeholder="输入主题" v-model="sbtInfo.topic">
-            <a-button slot="enterButton" @click.native="sbtInfo.topic = tempInfo.name">
-              使用模板名
-            </a-button>
-          </a-input-search>
-        </a-modal>
-        <a-modal centered
-          :bodyStyle="{
-            'text-align': 'center'
-          }"
-          :footer="null"
-          :visible="sbtInfo.loading"
-          :maskClosable="false"
-          :closable="false"
-        >
-          <a-spin tip="提交中..."/>
-        </a-modal>
       </div>
+      <a-modal title="个人信息" centered
+        :visible="sbtInfo.visible"
+        :confirm-loading="sbtInfo.loading"
+        @ok="onReceiptSubmit"
+        @cancel="sbtInfo.visible = false"
+      >
+        <a-input class="mb-5" placeholder="输入姓名" v-model="sbtInfo.name"/>
+        <a-input-search placeholder="输入主题" v-model="sbtInfo.topic">
+          <a-button slot="enterButton" @click.native="sbtInfo.topic = tempInfo.name">
+            使用模板名
+          </a-button>
+        </a-input-search>
+      </a-modal>
+      <a-modal centered
+        :bodyStyle="{
+          'text-align': 'center'
+        }"
+        :footer="null"
+        :visible="sbtInfo.loading"
+        :maskClosable="false"
+        :closable="false"
+      >
+        <a-spin tip="提交中..."/>
+      </a-modal>
     </div>
   </div>
 </template>
@@ -61,7 +61,8 @@ export default {
         loading: false,
         name: '',
         topic: '',
-        ctDwn: 0
+        ctDwn: 0,
+        submitted: false
       }
     }
   },
@@ -94,6 +95,7 @@ export default {
     async onReceiptSubmit () {
       this.sbtInfo.visible = false
       this.sbtInfo.loading = true
+      await new Promise(resolve => setTimeout(resolve, 500))
       const rcptName = `${this.sbtInfo.topic}-${this.sbtInfo.name}.png`
       const rcptImgURL = await this.$refs['img-with-cvs'].cutReceipt(rcptName)
       const path = '/hand-write-receipt/mdl/v1/receipt'
@@ -105,6 +107,7 @@ export default {
       console.log(newRcpt)
       this.sbtInfo.loading = false
       this.$message.success('回执提交成功！')
+      this.sbtInfo.submitted = true
     }
   }
 }
