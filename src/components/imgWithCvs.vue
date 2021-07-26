@@ -76,6 +76,10 @@ export default {
     'onSelRectCreated': {
       type: Function,
       default: null
+    },
+    'editable': {
+      type: Boolean,
+      default: true
     }
   },
   components: {
@@ -175,6 +179,9 @@ export default {
       }
     },
     onMouseDown (e) {
+      if (!this.editable) {
+        return
+      }
       if (this.mode) {
         e.preventDefault()
       }
@@ -190,6 +197,9 @@ export default {
       this.refreshScreen()
     },
     onMouseMove (e) {
+      if (!this.editable) {
+        return
+      }
       if (this.mode) {
         e.preventDefault()
       }
@@ -209,6 +219,9 @@ export default {
       }
     },
     onMouseUp (e) {
+      if (!this.editable) {
+        return
+      }
       if (this.mode) {
         e.preventDefault()
       }

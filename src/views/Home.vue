@@ -4,7 +4,9 @@
       <h5>{{noIdMsg}}</h5>
     </div>
     <div v-else>
-      <img-with-cvs ref="img-with-cvs" :bottom="sbtInfo.submitted ? 0 : 47" :tempInfo="tempInfo"/>
+      <img-with-cvs ref="img-with-cvs" :tempInfo="tempInfo"
+        :bottom="sbtInfo.submitted ? 0 : 47" :editable="!sbtInfo.submitted"
+      />
       <div v-if="!sbtInfo.submitted" class="fix-bottom">
         <a-button type="primary" block @click="onReceiptClicked" :disabled="sbtInfo.ctDwn !== 0">
           {{ sbtInfo.ctDwn ? `（${sbtInfo.ctDwn}s）` : '' }} 提交

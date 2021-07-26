@@ -2,7 +2,7 @@
   <div class="h-100">
     <div v-if="!tempInfo.imgURLs.length">
       <div class="fix-scroll p-1pc" style="bottom: 47px">
-        <a-list class="w-100 h-100" bordered item-layout="horizontal" :data-source="templates">
+        <a-list class="w-100 h-100" item-layout="horizontal" :data-source="templates">
           <a-list-item slot="renderItem" slot-scope="temp">
             <div class="lg-sg-r-container " style="width: 60vw">
               <a class="long-single-row" @click="onTempClicked(temp)">{{temp.name}}</a>
@@ -194,9 +194,8 @@ export default {
       this.configDlg.confirming = false
       this.configDlg.visible = false
       this.resetTempInfo()
-      this.$message.success(this.tempInfo._id ? '模板保存成功！' : '模板创建成功', 2, () => {
-        this.refreshTemplates()
-      })
+      this.$message.success(this.tempInfo._id ? '模板保存成功！' : '模板创建成功')
+      this.refreshTemplates()
     },
     onUseImgNameClicked () {
       const url = URL.parse(this.tempInfo.imgURLs[0])
