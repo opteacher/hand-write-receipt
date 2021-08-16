@@ -8,7 +8,7 @@
         `height: ${cvsInfo.height}px`
       ].join(';')"
     >你的浏览器不支持canvas，请升级浏览器</canvas>
-    <a-modal title="手写文字" centered :visible="hdWrteDlg.visible" @cancel="hdWrteDlg.visible = false" :bodyStyle="{
+    <a-modal title="手写文字" centered :visible="hdWrteDlg.visible" @cancel="onHdWtFinish" :bodyStyle="{
       'padding-bottom': '10px'
     }">
       <template slot="footer">
@@ -38,9 +38,34 @@
       title="输入编辑区域描述文字"
       :visible="editDescDlg.visible"
       @ok="onEdtDscDlgConfirmed"
-      @cancel="editDescDlg.visible = false"
+      @cancel="onEdtDscDlgConfirmed(false)"
     >
       <a-input placeholder="输入描述文字" v-model="editDescDlg.descWords"/>
+    </a-modal>
+    <a-modal
+      title="输入选择区域单选组"
+      :visible="selGrpDlg.visible"
+      @ok="onSelGrpDlgConfirmed"
+      @cancel="onSelGrpDlgConfirmed(false)"
+    >
+      <a-input-group>
+        <a-row :gutter="5">
+          <a-col :span="5">
+            <a-select class="w-100" v-model="selGrpDlg.inputMod">
+              <a-select-option value="select">选择</a-select-option>
+              <a-select-option value="input">输入</a-select-option>
+            </a-select>
+          </a-col>
+          <a-col :span="19">
+            <a-input v-if="selGrpDlg.inputMod === 'input'" placeholder="输入组" v-model="selGrpDlg.seledGrp"/>
+            <a-select v-else class="w-100" placeholder="选择组" v-model="selGrpDlg.seledGrp">
+              <a-select-option v-for="gp in selGrpDlg.groups" :key="gp" :value="gp">
+                {{gp}}
+              </a-select-option>
+            </a-select>
+          </a-col>
+        </a-row>
+      </a-input-group>
     </a-modal>
   </div>
 </template>
@@ -115,6 +140,12 @@ export default {
       editDescDlg: {
         visible: false,
         descWords: '',
+      },
+      selGrpDlg: {
+        visible: false,
+        inputMod: 'select',
+        groups: [],
+        seledGrp: ''
       },
       hdWrteDlg: {
         visible: false
@@ -242,7 +273,8 @@ export default {
         if (rect.mode === 'select') {
           rect.show = false
           this.cvsInfo.writing = true
-          this.operRect = rect
+          this.operRect = rect // selRctDown
+          rect.rect.down = true
         } else {
           rect.rect.down = true
         }
@@ -250,6 +282,8 @@ export default {
         rect.btnClose.down = true
       } else if (rect.btnDesc && rect.btnDesc.in) {
         rect.btnDesc.down = true
+      } else if (rect.btnSet && rect.btnSet.in) {
+        rect.btnSet.down = true
       } else if (rect.btnMove.in) {
         rect.btnMove.down = true
         rect.btnMove.dx = rect.left - this.mousedown.x * this.cvsInfo.rcpWid
@@ -270,26 +304,30 @@ export default {
     },
     mosMoveInRect (rect, mosPos) {
       if (rect.width && rect.height) {
-        this.switchMouseHover(rect, 'btnClose', 'pointer', mosPos)
-        if (rect.btnDesc) {
-          this.switchMouseHover(rect, 'btnDesc', 'pointer', mosPos)
-        }
-        this.switchMouseHover(rect, 'btnMove', 'move', mosPos)
-        if (rect.btnMove.down) {
-          rect.left = mosPos.x * this.cvsInfo.rcpWid + rect.btnMove.dx
-          rect.top = mosPos.y * this.cvsInfo.rcpHgt + rect.btnMove.dy
-          this.refreshScreen()
-        }
-        this.switchMouseHover(rect, 'btnResizes.lftTop', 'nw-resize', mosPos)
-        this.switchMouseHover(rect, 'btnResizes.top', 'n-resize', mosPos)
-        this.switchMouseHover(rect, 'btnResizes.rgtTop', 'ne-resize', mosPos)
-        this.switchMouseHover(rect, 'btnResizes.right', 'e-resize', mosPos)
-        this.switchMouseHover(rect, 'btnResizes.rgtBtm', 'se-resize', mosPos)
-        this.switchMouseHover(rect, 'btnResizes.bottom', 's-resize', mosPos)
-        this.switchMouseHover(rect, 'btnResizes.lftBtm', 'sw-resize', mosPos)
-        this.switchMouseHover(rect, 'btnResizes.left', 'w-resize', mosPos)
         if (!this.mode) {
           this.switchMouseHover(rect, 'rect', 'pointer', mosPos)
+        } else {
+          this.switchMouseHover(rect, 'btnClose', 'pointer', mosPos)
+          if (rect.btnDesc) {
+            this.switchMouseHover(rect, 'btnDesc', 'pointer', mosPos)
+          }
+          if (rect.btnSet) {
+            this.switchMouseHover(rect, 'btnSet', 'pointer', mosPos)
+          }
+          this.switchMouseHover(rect, 'btnMove', 'move', mosPos)
+          if (rect.btnMove.down) {
+            rect.left = mosPos.x * this.cvsInfo.rcpWid + rect.btnMove.dx
+            rect.top = mosPos.y * this.cvsInfo.rcpHgt + rect.btnMove.dy
+            this.refreshScreen()
+          }
+          this.switchMouseHover(rect, 'btnResizes.lftTop', 'nw-resize', mosPos)
+          this.switchMouseHover(rect, 'btnResizes.top', 'n-resize', mosPos)
+          this.switchMouseHover(rect, 'btnResizes.rgtTop', 'ne-resize', mosPos)
+          this.switchMouseHover(rect, 'btnResizes.right', 'e-resize', mosPos)
+          this.switchMouseHover(rect, 'btnResizes.rgtBtm', 'se-resize', mosPos)
+          this.switchMouseHover(rect, 'btnResizes.bottom', 's-resize', mosPos)
+          this.switchMouseHover(rect, 'btnResizes.lftBtm', 'sw-resize', mosPos)
+          this.switchMouseHover(rect, 'btnResizes.left', 'w-resize', mosPos)
         }
       }
     },
@@ -299,7 +337,7 @@ export default {
         case 'edit':
           rect.rect.down = false
           this.hdWrteDlg.visible = true
-          this.operRect = rect
+          this.operRect = rect // hdWtDown
           this.hdWtCvs.words = rect.data
           document.body.style.cursor = 'default'
           if (!this.hdWtCvs.viewBoard || !this.hdWtCvs.writeBoard) {
@@ -310,6 +348,13 @@ export default {
           break
         case 'select':
           rect.rect.down = false
+          if (rect.group) {
+            for (const rct of this.tempInfo.selectRects.filter(rct => {
+              return rct !== rect && rct.group === rect.group
+            })) {
+              rct.data = []
+            }
+          }
           break
         }
       } else if (rect.btnClose.down) {
@@ -326,9 +371,14 @@ export default {
         document.body.style.cursor = 'default'
       } else if (rect.btnDesc && rect.btnDesc.down) {
         this.editDescDlg.visible = true
-        this.operRect = rect
+        this.operRect = rect // descDown
         this.editDescDlg.descWords = rect.desc
         rect.btnDesc.down = false
+        document.body.style.cursor = 'default'
+      } else if (rect.btnSet && rect.btnSet.down) {
+        this.selGrpDlg.visible = true
+        this.operRect = rect // settingDown
+        rect.btnSet.down = false
         document.body.style.cursor = 'default'
       } else if (rect.btnMove.in || rect.btnMove.down) {
         rect.btnMove.down = false
@@ -349,7 +399,7 @@ export default {
         y: (rect.top + (yAxios === 'bottom' ? rect.height : 0)) * this.cvsInfo.height
       }
       this.dragging = true
-      this.operRect = rect
+      this.operRect = rect // resizeDown
       if (this.onSelRectCreated) {
         this.onSelRectCreated(rect.mode)
       }
@@ -403,6 +453,7 @@ export default {
       if (this.mode == 'edit' || this.mode === 'select') {
         if (this.operRect) {
           rect = this.operRect
+          this.operRect = null // resizeUp
         } else {
           rect = this.resetRect({}, this.mode)
           this.tempInfo[`${this.mode}Rects`].push(rect)
@@ -441,7 +492,7 @@ export default {
         )
         this.operRect.data = [[this.cvsInfo.stroke]]
         this.cvsInfo.stroke = []
-        this.operRect = null
+        this.operRect = null // selRctUp
       }
     },
     updHdWtStroke (mosPos) {
@@ -510,13 +561,22 @@ export default {
         rect.rect.t = top
         rect.rect.r = left + width
         rect.rect.b = top + height
-        if (!this.mode && rect.data && rect.data.length) {
-          if (rect.data.length * height < width) {
-            this.drawHdWtWds(context, rect.data, height, height, left, top)
-          } else {
-            this.drawHdWtWds(context, rect.data, width / rect.data.length, height, left, top)
+        if (!this.mode) {
+          if (rect.data && rect.data.length) {
+            if (rect.data.length * height < width) {
+              this.drawHdWtWds(context, rect.data, height, height, left, top)
+            } else {
+              this.drawHdWtWds(context, rect.data, width / rect.data.length, height, left, top)
+            }
+            return
           }
-          return
+          if (rect.mode === 'select' && rect.group) {
+            for (const rct of this.tempInfo.selectRects.filter(rct => rct.group === rect.group)) {
+              if (rct.data && rct.data.length) {
+                return
+              }
+            }
+          }
         }
         if (!rect.show) {
           return
@@ -524,22 +584,29 @@ export default {
         context.fillStyle = `rgba(${utils.clrMap[`${mode}RGB`]}, ${!rect.rect.down ? '.3' : '1'})`
         context.fillRect(left, top, width, height)
         if (rect.desc) {
-          const fontSz = Math.min(width / rect.desc.length, height)
-          context.fillStyle = utils.clrMap[mode]
-          context.font = `${fontSz}px Arial`
-          const txtRect = context.measureText(rect.desc)
-          context.fillText(rect.desc,
-            left + (width >> 1) - (txtRect.width >> 1),
-            top + (height >> 1) + (fontSz >> 1)
-          )
+          this.drawText(rect.desc, {left, top, width, height})
         }
         if (this.mode) {
           this.drawCtrlBtn(rect, left, top, width)
           if (!this.dragging) {
             this.drawResizeBtns(rect, left, top, width, height)
           }
+          if (rect.group) {
+            this.drawText(rect.group, {left, top, width, height}, 'select')
+          }
         }
       }
+    },
+    drawText (text, rect, mode = 'edit') {
+      const context = this.cvsInfo.context
+      const fontSz = Math.min(rect.width / text.length, rect.height)
+      context.fillStyle = utils.clrMap[mode]
+      context.font = `${fontSz}px Arial`
+      const txtRect = context.measureText(text)
+      context.fillText(text,
+        rect.left + (rect.width >> 1) - (txtRect.width >> 1),
+        rect.top + (rect.height >> 1) + (fontSz >> 1)
+      )
     },
     drawCtrlBtn (rect, left, top, width) {
       const context = this.cvsInfo.context
@@ -604,29 +671,49 @@ export default {
 
       context.stroke()
 
-      if (!rect.btnDesc) {
-        return
+      if (rect.btnDesc) {
+        if (rect.btnDesc.down) {
+          context.fillStyle = 'grey'
+        } else {
+          context.fillStyle = '#cdcdcd'
+        }
+        clsBtnL = right + 20
+        clsBtnT += 30
+        context.fillRect(clsBtnL, clsBtnT, 20, 20)
+        clsBtnR = clsBtnL + 20
+        clsBtnB += 30
+        rect.btnDesc.l = clsBtnL
+        rect.btnDesc.t = clsBtnT
+        rect.btnDesc.r = clsBtnR
+        rect.btnDesc.b = clsBtnB
+        context.moveTo(clsBtnL + 4, clsBtnT + 4)
+        context.lineTo(clsBtnL + 7, clsBtnB - 4)
+        context.lineTo(clsBtnL + 10, clsBtnT + 4)
+        context.lineTo(clsBtnR - 7, clsBtnB - 4)
+        context.lineTo(clsBtnR - 4, clsBtnT + 4)
+        context.stroke()
       }
-      if (rect.btnDesc.down) {
-        context.fillStyle = 'grey'
-      } else {
-        context.fillStyle = '#cdcdcd'
+
+      if (rect.btnSet) {
+        if (rect.btnSet.down) {
+          context.fillStyle = 'grey'
+        } else {
+          context.fillStyle = '#cdcdcd'
+        }
+        clsBtnL = right + 20
+        clsBtnT += 30
+        context.fillRect(clsBtnL, clsBtnT, 20, 20)
+        rect.btnSet.l = clsBtnL
+        rect.btnSet.t = clsBtnT
+        rect.btnSet.r = clsBtnL + 20
+        rect.btnSet.b = clsBtnT + 20
+        context.moveTo(clsBtnL + 5, clsBtnT + 10)
+        context.arc(clsBtnL + 5, clsBtnT + 10, 2, 0, 2*Math.PI)
+        context.arc(clsBtnL + 10, clsBtnT + 10, 2, 0, 2*Math.PI)
+        context.arc(clsBtnL + 15, clsBtnT + 10, 2, 0, 2*Math.PI)
+        context.fillStyle = 'black'
+        context.fill()
       }
-      clsBtnL = right + 20
-      clsBtnT += 30
-      context.fillRect(clsBtnL, clsBtnT, 20, 20)
-      clsBtnR = clsBtnL + 20
-      clsBtnB += 30
-      rect.btnDesc.l = clsBtnL
-      rect.btnDesc.t = clsBtnT
-      rect.btnDesc.r = clsBtnR
-      rect.btnDesc.b = clsBtnB
-      context.moveTo(clsBtnL + 4, clsBtnT + 4)
-      context.lineTo(clsBtnL + 7, clsBtnB - 4)
-      context.lineTo(clsBtnL + 10, clsBtnT + 4)
-      context.lineTo(clsBtnR - 7, clsBtnB - 4)
-      context.lineTo(clsBtnR - 4, clsBtnT + 4)
-      context.stroke()
     },
     drawResizeBtns (rect, left, top, width, height) {
       const right = left + width
@@ -722,12 +809,25 @@ export default {
       return pos.x >= box.l && pos.x <= box.r
         && pos.y >= box.t && pos.y <= box.b
     },
-    onEdtDscDlgConfirmed () {
-      this.operRect.desc = this.editDescDlg.descWords
+    onEdtDscDlgConfirmed (confirmed = true) {
+      if (confirmed) {
+        this.operRect.desc = this.editDescDlg.descWords
+      }
       this.editDescDlg.descWords = ''
       this.editDescDlg.visible = false
-      this.operRect = null
+      this.operRect = null  // descUp
       this.refreshScreen()
+    },
+    onSelGrpDlgConfirmed (confirmed = true) {
+      if (confirmed) {
+        if (!this.selGrpDlg.groups.includes(this.selGrpDlg.seledGrp)) {
+          this.selGrpDlg.groups.push(this.selGrpDlg.seledGrp)
+        }
+        this.operRect.group = this.selGrpDlg.seledGrp
+      }
+      this.selGrpDlg.visible = false
+      this.selGrpDlg.seledGrp = ''
+      this.operRect = null // settingUp
     },
     clrScreen () {
       if (!this.history.length) {
@@ -775,6 +875,16 @@ export default {
       }, rctBtn())
       if (rect.mode === 'edit') {
         rect.btnDesc = rctBtn()
+      }
+      if (rect.mode === 'select') {
+        if (rect.group) {
+          if (!this.selGrpDlg.groups.includes(rect.group)) {
+            this.selGrpDlg.groups.push(rect.group)
+          }
+        } else {
+          rect.group = ''
+        }
+        rect.btnSet = rctBtn()
       }
       if (rect.mode !== 'store') {
         rect.data = []
@@ -840,9 +950,11 @@ export default {
     onHdWtFinish () {
       this.hdWtCvs.strokes = []
       this.hdWtCvs.lastStk = []
-      this.operRect.data = this.hdWtCvs.words
+      if (this.hdWtCvs.words.length) {
+        this.operRect.data = this.hdWtCvs.words
+      }
       this.hdWtCvs.words = []
-      this.operRect = null
+      this.operRect = null // hdWtUp
       this.hdWrteDlg.visible = false
       this.hdWtCvs.vwContext.putImageData(this.hdWtCvs.viewBoard, 0, 0)
       this.refreshScreen()
@@ -908,8 +1020,22 @@ export default {
       if (this.tempInfo.editRects.find(rect => !rect.data.length)) {
         return false
       }
-      if (this.tempInfo.selectRects.find(rect => !rect.data.length)) {
-        return false
+      const selGroups = {}
+      for (const rect of this.tempInfo.selectRects) {
+        if (!selGroups[rect.group]) {
+          selGroups[rect.group] = [rect]
+        } else {
+          selGroups[rect.group].push(rect)
+        }
+      }
+      for (const rects of Object.values(selGroups)) {
+        let status = false
+        for (const rect of rects) {
+          status |= rect.data.length !== 0
+        }
+        if (!status) {
+          return false
+        }
       }
       return true
     },

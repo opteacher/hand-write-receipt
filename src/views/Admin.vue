@@ -188,7 +188,7 @@ export default {
         selectRects: this.tempInfo.selectRects.map(rect => ({
           left: rect.left, top: rect.top,
           width: rect.width, height: rect.height,
-          desc: rect.desc
+          group: rect.group
         }))
       }))
       this.configDlg.confirming = false
@@ -232,6 +232,8 @@ export default {
     }
   }
 }
+// 各位居民朋友，现在《全民反诈告知书》可以线上领取啦！扫描下面二维码查看告知书，提高自身反诈识诈意识，
+// 共建我们和谐安定的社区环境。在仔细阅读告知书后请按要求填写回执再提交，已经领取过纸质告知书、填写过回执的可以不扫码，谢谢配合！
 </script>
 
 <style>
